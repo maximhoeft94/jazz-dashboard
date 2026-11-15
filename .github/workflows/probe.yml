@@ -5,39 +5,51 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Probe
+      - name: Probe ESPN
         shell: python
         run: |
-          import json, urllib.request, time
-          UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-          variants = {
-            "none": {},
-            "ua": {"User-Agent": UA},
-            "ua+ref": {"User-Agent": UA, "Referer": "https://www.nba.com/", "Accept": "application/json"},
-            "full": {"User-Agent": UA, "Referer": "https://www.nba.com/", "Origin": "https://www.nba.com", "Accept": "*/*", "Accept-Language": "en-US,en;q=0.9"},
-          }
-          urls = [
-            "https://cdn.nba.com/static/json/staticData/scheduleLeagueV2.json",
-            "https://cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_00.json",
-            "https://cdn.nba.com/static/json/liveData/boxscore/boxscore_0022500001.json",
-            "https://cdn.nba.com/static/json/liveData/playbyplay/playbyplay_0022500001.json",
-            "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/26/schedule",
-            "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard",
-            "https://www.basketball-reference.com/teams/UTA/2027.html",
-          ]
-          for u in urls:
-              for name, h in variants.items():
-                  t = time.time()
-                  try:
-                      with urllib.request.urlopen(urllib.request.Request(u, headers=h), timeout=20) as r:
-                          b = r.read()
-                      print("OK  ", name, u, len(b), round(time.time()-t, 2))
-                      break
-                  except Exception as e:
-                      print("FAIL", name, u, str(e)[:80])
-      - name: Probe with curl
-        run: |
-          for u in https://cdn.nba.com/static/json/staticData/scheduleLeagueV2.json https://cdn.nba.com/static/json/liveData/boxscore/boxscore_0022500001.json; do
-            curl -sS -m 20 -o /dev/null -w "curl %{http_code} %{size_download} $u\n" -A "Mozilla/5.0" "$u" || true
-            curl -sS -m 20 -o /dev/null -w "curl-h2 %{http_code} %{size_download} $u\n" --http2 -H "accept: application/json" -H "referer: https://www.nba.com/" -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36" "$u" || true
-          done
+          import json, urllib.request, time, collections
+          def get(u):
+              t = time.time()
+              with urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0"}), timeout=30) as r:
+                  b = r.read()
+              print("OK", u, len(b), round(time.time()-t, 2)); return json.loads(b)
+          def shape(o, d=0, maxd=3):
+              if d > maxd: return "…"
+              if isinstance(o, dict): return {k: shape(v, d+1, maxd) for k, v in list(o.items())[:40]}
+              if isinstance(o, list): return [shape(o[0], d+1, maxd), "len=%d" % len(o)] if o else []
+              return o if not isinstance(o, str) else o[:60]
+          B = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba"
+          sb = get(B + "/scoreboard?dates=20261020-20261115&limit=1000")
+          ev = sb.get("events", []); print("EVENTS cur", len(ev))
+          print("EVENT0", json.dumps(shape(ev[0], maxd=4))[:3500])
+          sb2 = get(B + "/scoreboard?dates=20251020-20260420&limit=2000"); print("EVENTS prev", len(sb2.get("events", [])))
+          sb3 = get(B + "/scoreboard?dates=20251201-20251231&limit=1000"); print("EVENTS dec25", len(sb3.get("events", [])))
+          uta = [e for e in ev if any(c["team"]["abbreviation"] == "UTAH" or c["team"]["abbreviation"] == "UTA" for c in e["competitions"][0]["competitors"]) and e["status"]["type"]["completed"]]
+          print("UTA done", len(uta), [ (e["id"], e["date"], e["season"]) for e in uta][:3])
+          print("ABBRS", sorted({c["team"]["abbreviation"] for e in ev for c in e["competitions"][0]["competitors"]}))
+          s = get(B + "/summary?event=" + uta[-1]["id"])
+          print("SUMMARY KEYS", list(s.keys()))
+          bx = s["boxscore"]
+          print("BOX TEAMS", json.dumps(shape(bx["teams"][0], maxd=4))[:2500])
+          print("TEAM STATS", json.dumps([(x.get("name"), x.get("label"), x.get("displayValue")) for x in bx["teams"][0]["statistics"]]))
+          pl = bx["players"][0]
+          print("PLAYERS team", pl["team"]["abbreviation"], "stat groups", len(pl["statistics"]))
+          g = pl["statistics"][0]
+          print("PSTAT names", g.get("names"), "keys", g.get("keys"), "labels", g.get("labels"))
+          print("ATHLETE0", json.dumps(g["athletes"][0])[:1500])
+          print("TOTALS", g.get("totals"))
+          plays = s.get("plays", []); print("PLAYS", len(plays))
+          types = collections.Counter(p.get("type", {}).get("text") for p in plays); print("TYPES", types.most_common(60))
+          seen = {}
+          for p in plays:
+              k = p.get("type", {}).get("text")
+              if k not in seen: seen[k] = p
+          for k in ["Substitution", "Jump Shot", "Pullup Jump Shot", "Layup Shot", "Driving Layup Shot", "Free Throw - 1 of 2", "Defensive Rebound", "Offensive Rebound", "End Period", "Bad Pass\nTurnover", "Lost Ball Turnover"]:
+              if k in seen: print("PLAY", repr(k), json.dumps(seen[k])[:1200])
+          shots = [p for p in plays if p.get("shootingPlay") and "Free Throw" not in p.get("type", {}).get("text", "")]
+          print("SHOTS", len(shots)); [print("SHOT", json.dumps({k: p.get(k) for k in ("text","coordinate","scoreValue","scoringPlay","team","participants","pointsAttempted","shortDescription")})[:500]) for p in shots[:6]]
+          subs = [p for p in plays if "ubstitution" in p.get("type", {}).get("text", "")]
+          print("SUBS", len(subs)); [print("SUB", json.dumps(p)[:700]) for p in subs[:3]]
+          print("OTHER KEYS", {k: (type(v).__name__, len(v) if hasattr(v, "__len__") else "") for k, v in s.items()})
+          r = get(B + "/teams/26/roster"); print("ROSTER", json.dumps(shape(r.get("athletes", [None])[0], maxd=2))[:1500])
