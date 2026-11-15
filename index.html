@@ -16,7 +16,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#f1f0f7; --panel:#ffffff; --ink:#15112a; --muted:#625c78; --line:#dcd9e8; --soft:#f6f5fb;
+  --bg:#f3e9da; --panel:#ffffff; --ink:#15112a; --muted:#625c78; --line:#dcd9e8; --soft:#f6f5fb;
   --jazz:#4b2a85; --gold:#e9a825; --good:#0b8a4f; --bad:#c8202f;
   --div:#4b2a85; --a:#4b2a85; --b:#e8590c;
   --hot:#d1495b; --cold:#3b6fb6; --mid:#e6e4ee;
@@ -366,7 +366,7 @@ function renderHero(){
   const mark = '<svg class="mark" viewBox="0 0 132 132" aria-hidden="true"><path class="b" d="M22 18H110V70H22Z"/><path class="m" d="M48 36H84V62H48Z"/><ellipse class="note" cx="62" cy="55" rx="5.2" ry="3.7" transform="rotate(-22 62 55)"/><path class="note-s" d="M66.6 54V40.5c2.6 3.4 7.4 4.4 6.6 9.6"/><path class="f" d="M40 74H92"/><path class="b" d="M44 76L52 116M58 76L60 116M74 76L72 116M88 76L80 116M46 92H86M48 106H84"/><path class="m" d="M66 70V74"/></svg>';
   $('#hero').innerHTML = '<div class="hero"><div class="circle"><h1><span>'+esc(state.season)+' regular season</span>Utah Jazz</h1></div>'+mark+'</div>';
 }
-const KTHEME = 'night';  // also available: 'lavender', 'gold'
+const KTHEME = 'lavender';  // also available: 'night', 'gold'
 function kpiRows(X, G, streak){
   const J = X.J, n = X.teams.length, r = (key,dir) => rankOf(X.teams,key,dir,J.ab);
   const pf = G.reduce((a,g)=>a+g.pts,0), pa = G.reduce((a,g)=>a+g.opts,0);
