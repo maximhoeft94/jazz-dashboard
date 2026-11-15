@@ -342,18 +342,25 @@ function renderTabs(){
   $('#tabs').innerHTML = DASH.map(([id,lab]) => '<button class="tab'+(state.dash===id?' on':'')+'" role="tab" aria-selected="'+(state.dash===id)+'" aria-controls="'+id+'" data-dash="'+id+'">'+lab+'</button>').join('');
   DASH.forEach(([id]) => { $('#'+id).hidden = state.dash!==id; });
 }
+const kpi = (l,val,sub) => '<div class="kpi"><div class="kl">'+l+'</div><div class="kv num">'+val+'</div><div class="ks">'+sub+'</div></div>';
 function renderHero(){
-  const X = S(), J = X.J, n = X.teams.length;
-  const k = (l,val,sub) => '<div class="kpi"><div class="kl">'+l+'</div><div class="kv num">'+val+'</div><div class="ks">'+sub+'</div></div>';
-  const r = (key,dir) => rankOf(X.teams,key,dir,J.ab);
   const mark = '<svg class="mark" viewBox="0 0 132 132" aria-hidden="true"><path class="b" d="M22 18H110V70H22Z"/><path class="m" d="M48 36H84V62H48Z"/><ellipse class="note" cx="62" cy="55" rx="5.2" ry="3.7" transform="rotate(-22 62 55)"/><path class="note-s" d="M66.6 54V40.5c2.6 3.4 7.4 4.4 6.6 9.6"/><path class="f" d="M40 74H92"/><path class="b" d="M44 76L52 116M58 76L60 116M74 76L72 116M88 76L80 116M46 92H86M48 106H84"/><path class="m" d="M66 70V74"/></svg>';
-  $('#hero').innerHTML = '<div class="hero"><div class="circle"><h1><span>'+esc(state.season)+' regular season</span>Utah Jazz</h1></div>'+mark+'</div><div class="kpis">'
-    + k('Record', J.w+'-'+J.l, (J.gp?p3(J.wpct)+' win %, ':'')+ord(r('wpct',1)||n)+' of '+n)
-    + k('Net rating', sgn(J.net), rkBadge(r('net',1),n,1)+' Points per 100 possessions, margin')
-    + k('Offense', num(J.ortg,1), rkBadge(r('ortg',1),n,1)+' Points scored per 100')
-    + k('Defense', num(J.drtg,1), rkBadge(r('drtg',-1),n,-1)+' Points allowed per 100')
-    + k('Pace', num(J.pace,1), ord(r('pace',0)||n)+' fastest, possessions per 48')
-    + '</div>';
+  $('#hero').innerHTML = '<div class="hero"><div class="circle"><h1><span>'+esc(state.season)+' regular season</span>Utah Jazz</h1></div>'+mark+'</div>';
+}
+function kpiRows(X, G, streak){
+  const J = X.J, n = X.teams.length, r = (key,dir) => rankOf(X.teams,key,dir,J.ab);
+  const pf = G.reduce((a,g)=>a+g.pts,0), pa = G.reduce((a,g)=>a+g.opts,0);
+  const row1 = kpi('Record', J.w+'-'+J.l, (J.gp?p3(J.wpct)+' win %, ':'')+ord(r('wpct',1)||n)+' of '+n)
+    + kpi('Net rating', sgn(J.net), rkBadge(r('net',1),n,1)+' Points per 100 possessions, margin')
+    + kpi('Offense', num(J.ortg,1), rkBadge(r('ortg',1),n,1)+' Points scored per 100')
+    + kpi('Defense', num(J.drtg,1), rkBadge(r('drtg',-1),n,-1)+' Points allowed per 100')
+    + kpi('Pace', num(J.pace,1), ord(r('pace',0)||n)+' fastest, possessions per 48');
+  const row2 = kpi('Points for', pf.toLocaleString('en-US'), 'Total scored in '+G.length+' games')
+    + kpi('Points against', pa.toLocaleString('en-US'), rkBadge(r('opp',-1),n,-1)+' Total allowed, '+num(G.length?pa/G.length:null,1)+' per game')
+    + kpi('Streak', streak, G.length ? 'Current run of '+(streak[0]==='W'?'wins':'losses') : 'No games yet')
+    + kpi('Points per game', num(J.pts,1), rkBadge(r('pts',1),n,1)+' Scoring average')
+    + kpi('Point differential', sgn(pf-pa,0), rkBadge(r('pm',1),n,1)+' '+sgn(G.length?(pf-pa)/G.length:null)+' per game');
+  return '<div class="kpis">'+row1+'</div><div class="kpis" style="margin-top:10px">'+row2+'</div>';
 }
 
 /* ---------- Jazz vs league ---------- */
@@ -409,7 +416,8 @@ function renderOverview(){
   let h = '<div class="sh"><h2>Team Performance</h2><span class="note">'+esc(state.season)+' regular season</span></div>';
   h += '<div class="rec"><div class="big num">'+J.w+'-'+J.l+'<small>Record, '+ord(rankOf(X.teams,'wpct',1,J.ab)||n)+' of '+n+' in win %</small></div><div class="chips">'
     + chip(rec(G.filter(g=>g.home)),'Home') + chip(rec(G.filter(g=>!g.home)),'Road') + chip(rec(G.slice(-10)),'Last '+Math.min(10,G.length))
-    + chip(streak,'Streak') + chip(sgn(mean(G.map(g=>g.margin))),'Avg. margin') + '</div></div>';
+    + chip(sgn(mean(G.map(g=>g.margin))),'Avg. margin') + '</div></div>';
+  h += kpiRows(X, G, streak) + '<div style="height:18px"></div>';
   h += '<div class="panel scroll" style="margin-bottom:14px"><div class="pad" style="padding-bottom:4px"><h3 style="font-family:var(--font-d);font-weight:600;font-size:21px;margin:0">Next 10 games</h3></div>'+nextGames(X)+'</div>';
   h += '<div class="panel card"><h3>Point differential by game</h3><div class="lgd"><span><b style="background:var(--good)"></b>Win</span><span><b style="background:var(--bad)"></b>Loss</span><span>Hover a bar for the score.</span></div>'+marginChart(G)+'</div>';
   h += '<hr class="seg"><div class="appx">Appendix</div><div id="ovSched"></div>';
