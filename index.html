@@ -356,11 +356,11 @@ function kpiRows(X, G, streak){
     + kpi('Net rating', sgn(J.net), rkBadge(r('net',1),n,1)+' Points per 100 possessions, margin')
     + kpi('Offense', num(J.ortg,1), rkBadge(r('ortg',1),n,1)+' Points scored per 100')
     + kpi('Defense', num(J.drtg,1), rkBadge(r('drtg',-1),n,-1)+' Points allowed per 100')
-    + kpi('Average margin', sgn(J.pm), rkBadge(r('pm',1),n,1)+' Points per game, scored minus allowed');
+    + kpi('Point differential', sgn(pf-pa,0), rkBadge(r('pm',1),n,1)+' Season total, '+G.length+' games');
   const row2 = kpi('Points per game', num(J.pts,1), rkBadge(r('pts',1),n,1)+' Jazz scoring average')
     + kpi('Opponent points per game', num(J.opp,1), rkBadge(r('opp',-1),n,-1)+' Allowed per game')
+    + kpi('Average margin', sgn(J.pm), rkBadge(r('pm',1),n,1)+' Points per game, scored minus allowed')
     + kpi('Streak', streak, G.length ? 'Current run of '+(streak[0]==='W'?'wins':'losses') : 'No games yet')
-    + kpi('Point differential', sgn(pf-pa,0), 'Season total, '+G.length+' games')
     + '<div class="kpi open" aria-hidden="true"><div class="kl">Open slot</div></div>';
   return '<div class="kpis">'+row1+'</div><div class="kpis" style="margin-top:10px">'+row2+'</div>';
 }
