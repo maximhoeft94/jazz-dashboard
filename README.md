@@ -56,7 +56,6 @@ Refresh the data: the repo refreshes itself. To refresh right away, open the **A
 
 ```
 python fetch_jazz.py                                # the current season
-python fetch_jazz.py --seasons 2026-27 2025-26      # several seasons (adds season tabs data)
 ```
 
 The first run of a season downloads every game played so far (a few minutes); later runs only download new games and take under a minute.
