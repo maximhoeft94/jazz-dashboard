@@ -20,11 +20,20 @@ jobs:
               if isinstance(o, list): return [shape(o[0], d+1, maxd), "len=%d" % len(o)] if o else []
               return o if not isinstance(o, str) else o[:60]
           B = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba"
-          sb = get(B + "/scoreboard?dates=20261020-20261115&limit=1000")
-          ev = sb.get("events", []); print("EVENTS cur", len(ev))
+          def tryget(u):
+              try: return get(u)
+              except Exception as e: print("FAIL", u, e); return {}
+          for q in ["dates=20261020-20261115&limit=1000", "dates=20261020-20261115&limit=500", "dates=20261020-20261115", "dates=20261101-20261114&limit=300", "dates=20261114"]:
+              sb = tryget(B + "/scoreboard?" + q); print("EVENTS", q, len(sb.get("events", [])))
+          ev = []
+          import datetime as dt
+          d = dt.date(2026, 10, 20)
+          while d <= dt.date(2026, 11, 15):
+              ev += tryget(B + "/scoreboard?dates=" + d.strftime("%Y%m%d")).get("events", []); d += dt.timedelta(days=1)
+          print("EVENTS daily", len(ev))
           print("EVENT0", json.dumps(shape(ev[0], maxd=4))[:3500])
-          sb2 = get(B + "/scoreboard?dates=20251020-20260420&limit=2000"); print("EVENTS prev", len(sb2.get("events", [])))
-          sb3 = get(B + "/scoreboard?dates=20251201-20251231&limit=1000"); print("EVENTS dec25", len(sb3.get("events", [])))
+          sch = tryget(B + "/teams/26/schedule?season=2026"); print("SCHED prev", len(sch.get("events", [])), json.dumps(shape(sch.get("events",[{}])[0], maxd=3))[:1200])
+          sch2 = tryget(B + "/teams/26/schedule"); print("SCHED cur", len(sch2.get("events", [])))
           uta = [e for e in ev if any(c["team"]["abbreviation"] == "UTAH" or c["team"]["abbreviation"] == "UTA" for c in e["competitions"][0]["competitors"]) and e["status"]["type"]["completed"]]
           print("UTA done", len(uta), [ (e["id"], e["date"], e["season"]) for e in uta][:3])
           print("ABBRS", sorted({c["team"]["abbreviation"] for e in ev for c in e["competitions"][0]["competitors"]}))
