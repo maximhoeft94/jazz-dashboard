@@ -1,64 +1,34 @@
 name: Probe NBA CDN (temporary)
 on: workflow_dispatch
+permissions:
+  contents: write
 jobs:
   probe:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Probe ESPN
+      - uses: actions/checkout@v4
+      - name: Save ESPN samples
         shell: python
         run: |
-          import json, urllib.request, time, collections
-          def get(u):
-              t = time.time()
-              with urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0"}), timeout=30) as r:
-                  b = r.read()
-              print("OK", u, len(b), round(time.time()-t, 2)); return json.loads(b)
-          def shape(o, d=0, maxd=3):
-              if d > maxd: return "…"
-              if isinstance(o, dict): return {k: shape(v, d+1, maxd) for k, v in list(o.items())[:40]}
-              if isinstance(o, list): return [shape(o[0], d+1, maxd), "len=%d" % len(o)] if o else []
-              return o if not isinstance(o, str) else o[:60]
+          import json, urllib.request, os
           B = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba"
-          def tryget(u):
-              try: return get(u)
-              except Exception as e: print("FAIL", u, e); return {}
-          for q in ["dates=20261020-20261115&limit=1000", "dates=20261020-20261115&limit=500", "dates=20261020-20261115", "dates=20261101-20261114&limit=300", "dates=20261114"]:
-              sb = tryget(B + "/scoreboard?" + q); print("EVENTS", q, len(sb.get("events", [])))
-          ev = []
-          import datetime as dt
-          d = dt.date(2026, 10, 20)
-          while d <= dt.date(2026, 11, 15):
-              ev += tryget(B + "/scoreboard?dates=" + d.strftime("%Y%m%d")).get("events", []); d += dt.timedelta(days=1)
-          print("EVENTS daily", len(ev))
-          print("EVENT0", json.dumps(shape(ev[0], maxd=4))[:3500])
-          sch = tryget(B + "/teams/26/schedule?season=2026"); print("SCHED prev", len(sch.get("events", [])), json.dumps(shape(sch.get("events",[{}])[0], maxd=3))[:1200])
-          sch2 = tryget(B + "/teams/26/schedule"); print("SCHED cur", len(sch2.get("events", [])))
-          uta = [e for e in ev if any(c["team"]["abbreviation"] == "UTAH" or c["team"]["abbreviation"] == "UTA" for c in e["competitions"][0]["competitors"]) and e["status"]["type"]["completed"]]
-          print("UTA done", len(uta), [ (e["id"], e["date"], e["season"]) for e in uta][:3])
-          print("ABBRS", sorted({c["team"]["abbreviation"] for e in ev for c in e["competitions"][0]["competitors"]}))
-          s = get(B + "/summary?event=" + uta[-1]["id"])
-          print("SUMMARY KEYS", list(s.keys()))
-          bx = s["boxscore"]
-          print("BOX TEAMS", json.dumps(shape(bx["teams"][0], maxd=4))[:2500])
-          print("TEAM STATS", json.dumps([(x.get("name"), x.get("label"), x.get("displayValue")) for x in bx["teams"][0]["statistics"]]))
-          pl = bx["players"][0]
-          print("PLAYERS team", pl["team"]["abbreviation"], "stat groups", len(pl["statistics"]))
-          g = pl["statistics"][0]
-          print("PSTAT names", g.get("names"), "keys", g.get("keys"), "labels", g.get("labels"))
-          print("ATHLETE0", json.dumps(g["athletes"][0])[:1500])
-          print("TOTALS", g.get("totals"))
-          plays = s.get("plays", []); print("PLAYS", len(plays))
-          types = collections.Counter(p.get("type", {}).get("text") for p in plays); print("TYPES", types.most_common(60))
-          seen = {}
-          for p in plays:
-              k = p.get("type", {}).get("text")
-              if k not in seen: seen[k] = p
-          for k in ["Substitution", "Jump Shot", "Pullup Jump Shot", "Layup Shot", "Driving Layup Shot", "Free Throw - 1 of 2", "Defensive Rebound", "Offensive Rebound", "End Period", "Bad Pass\nTurnover", "Lost Ball Turnover"]:
-              if k in seen: print("PLAY", repr(k), json.dumps(seen[k])[:1200])
-          shots = [p for p in plays if p.get("shootingPlay") and "Free Throw" not in p.get("type", {}).get("text", "")]
-          print("SHOTS", len(shots)); [print("SHOT", json.dumps({k: p.get(k) for k in ("text","coordinate","scoreValue","scoringPlay","team","participants","pointsAttempted","shortDescription")})[:500]) for p in shots[:6]]
-          subs = [p for p in plays if "ubstitution" in p.get("type", {}).get("text", "")]
-          print("SUBS", len(subs)); [print("SUB", json.dumps(p)[:700]) for p in subs[:3]]
-          print("OTHER KEYS", {k: (type(v).__name__, len(v) if hasattr(v, "__len__") else "") for k, v in s.items()})
-          r = get(B + "/teams/26/roster"); print("ROSTER", json.dumps(shape(r.get("athletes", [None])[0], maxd=2))[:1500])
+          def get(u):
+              with urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0"}), timeout=30) as r:
+                  return json.loads(r.read())
+          os.makedirs("samples", exist_ok=True)
+          sb = get(B + "/scoreboard?dates=20261113"); json.dump(sb, open("samples/scoreboard_20261113.json", "w"))
+          sch = get(B + "/teams/26/schedule"); json.dump(sch, open("samples/schedule_uta.json", "w"))
+          done = [e for e in sch["events"] if e["competitions"][0]["status"]["type"]["completed"]]
+          for e in done[-2:]:
+              json.dump(get(B + "/summary?event=" + e["id"]), open("samples/summary_%s.json" % e["id"], "w"))
+          other = [e for e in sb["events"] if all(c["team"]["abbreviation"] != "UTAH" for c in e["competitions"][0]["competitors"])][0]
+          json.dump(get(B + "/summary?event=" + other["id"]), open("samples/summary_%s.json" % other["id"], "w"))
+          json.dump(get(B + "/teams/26/roster"), open("samples/roster_uta.json", "w"))
+          json.dump(get(B + "/teams/26/schedule?season=2026"), open("samples/schedule_uta_2026.json", "w"))
+      - name: Push samples to a scratch branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git checkout -b probe-samples
+          git add samples && git commit -qm "ESPN samples" && git push -f origin probe-samples
