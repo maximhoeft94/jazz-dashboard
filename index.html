@@ -40,7 +40,9 @@ button:focus-visible,select:focus-visible{outline:2px solid var(--div);outline-o
 .banner{background:color-mix(in srgb,var(--b) 14%,var(--panel));border:1px solid color-mix(in srgb,var(--b) 55%,var(--line));border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:14px}
 
 /* tabs */
-.tabs{display:flex;border-bottom:3px solid var(--jazz);overflow-x:auto;scrollbar-width:none;position:sticky;top:0;z-index:5;background:var(--bg);margin-top:26px}
+.tabs{display:flex;flex-wrap:wrap;row-gap:2px;border-bottom:3px solid var(--jazz);position:sticky;top:0;z-index:5;background:var(--bg);margin-top:26px}
+@media (max-width:820px){.tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}}
+section{scroll-margin-top:120px}
 section[hidden]{display:none}
 .rec{display:flex;align-items:flex-end;gap:28px;flex-wrap:wrap;margin:4px 0 18px}
 .rec .big{font-family:var(--font-d);font-weight:700;font-size:64px;line-height:.9}
@@ -55,9 +57,14 @@ section[hidden]{display:none}
 .mark .note{fill:var(--gold);stroke:none}
 .mark .note-s{fill:none;stroke:var(--gold);stroke-width:2.6;stroke-linecap:round}
 .tabs::-webkit-scrollbar{display:none}
-.tab{background:none;border:0;border-bottom:5px solid transparent;margin-bottom:-3px;padding:10px 16px 8px;font-family:var(--font-d);font-weight:600;font-size:19px;color:var(--muted);white-space:nowrap}
+.tab{background:none;border:0;border-bottom:5px solid transparent;margin-bottom:-3px;padding:9px 13px 7px;font-family:var(--font-d);font-weight:600;font-size:19px;color:var(--muted);white-space:nowrap}
 .tab:hover{color:var(--ink)}
 .tab.on{color:var(--ink);border-bottom-color:var(--b)}
+.tabsep{flex:none;width:1px;background:#c9c5d6;margin:10px 10px 8px}
+.tabgrp{flex:none;align-self:center;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:0 2px 0 4px}
+.more{display:block;width:100%;background:var(--soft);border:0;border-top:1px solid var(--line);padding:10px;font-weight:600;color:var(--jazz);border-radius:0 0 8px 8px}
+.more:hover{background:color-mix(in srgb,var(--jazz) 8%,var(--soft))}
+tr.next td{box-shadow:inset 0 2px 0 var(--b)}
 .tab small{font-family:var(--font-b);font-size:13px;font-weight:500;margin-left:6px;color:var(--muted)}
 
 /* hero */
@@ -251,6 +258,7 @@ footer{margin-top:40px;font-size:13px;color:var(--muted);border-top:3px solid va
   <section id="shots"></section>
   <section id="models"></section>
   <section id="h2h"></section>
+  <section id="schedule"></section>
   <footer id="foot"></footer>
 </div>
 
@@ -273,10 +281,10 @@ const mean = xs => { xs = xs.filter(ok); return xs.length ? xs.reduce((s,x)=>s+x
 if(!D){ document.body.innerHTML = '<div class="wrap"><div class="empty">No data embedded. Run <code>python fetch_jazz.py</code> to load the seasons.</div></div>'; return; }
 
 /* ---------- state ---------- */
-const DASH_IDS = ['overview','vsLeague','leagueTable','players','lineups','onoff','shots','models','h2h'];
+const DASH_IDS = ['overview','vsLeague','leagueTable','players','lineups','onoff','shots','models','h2h','schedule'];
 const state = {
   season: D.current || D.order[0], dash: (DASH_IDS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview'), ins:'league', lt:'adv', pm:'pg', lu:'5', luMin:null,
-  scP:'ALL', scMode:'hex', mdl:'pyth', pA:null, pB:null,
+  scP:'ALL', scMode:'hex', mdl:'pyth', schedAll:false, pA:null, pB:null,
   sort:{ lt:{k:'net',d:-1}, pl:{k:'min',d:-1}, lu:{k:'min',d:-1} }
 };
 
@@ -330,9 +338,9 @@ const rkColor = (r,n) => r==null ? 'var(--muted)' : r <= n/3 ? 'var(--good)' : r
 const rkBadge = (r,n,dir) => r==null ? '' : '<span class="rkb" style="background:'+(dir===0?'var(--muted)':rkColor(r,n))+'">'+ord(r)+'</span>';
 
 /* ---------- tabs + hero ---------- */
-const DASH = [['overview','Team Performance (Overview)'],['vsLeague','Jazz vs. League'],['leagueTable','League Table'],['players','Players'],['lineups','Lineups'],['onoff','On/Off'],['shots','Shot Chart'],['models','Models'],['h2h','Player vs. Player']];
+const DASH = [['overview','Team Performance (Overview)'],['vsLeague','Jazz vs. League'],['leagueTable','League Table'],['players','Players'],['lineups','Lineups'],['onoff','On/Off'],['shots','Shot Chart'],['models','Models'],['h2h','Player vs. Player'],['schedule','Complete Schedule','Appendix']];
 function renderTabs(){
-  $('#tabs').innerHTML = DASH.map(([id,lab]) => '<button class="tab'+(state.dash===id?' on':'')+'" role="tab" aria-selected="'+(state.dash===id)+'" aria-controls="'+id+'" data-dash="'+id+'">'+lab+'</button>').join('');
+  $('#tabs').innerHTML = DASH.map(([id,lab,grp]) => (grp ? '<span class="tabsep" aria-hidden="true"></span><span class="tabgrp">'+esc(grp)+'</span>' : '') + '<button class="tab'+(state.dash===id?' on':'')+'" role="tab" aria-selected="'+(state.dash===id)+'" aria-controls="'+id+'" data-dash="'+id+'">'+lab+'</button>').join('');
   DASH.forEach(([id]) => { $('#'+id).hidden = state.dash!==id; });
 }
 function renderHero(){
@@ -409,14 +417,39 @@ function renderOverview(){
 }
 const fTime = iso => new Date(iso).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/Denver'})+' MT';
 const fDay = iso => new Date(iso).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',timeZone:'America/Denver'});
+function renderSchedule(){
+  const X = S(), sch = D.schedule || [];
+  let h = '<div class="sh"><h2>Complete Schedule</h2><span class="note">'+esc(state.season)+' regular season, every Jazz game in order. Times are Mountain.</span></div>';
+  if(!sch.length){ $('#schedule').innerHTML = h + '<div class="panel empty">The schedule is not loaded yet. It arrives with the next data refresh.</div>'; return; }
+  const byId = {}; X.games.forEach(g => byId[g.id] = g);
+  let w = 0, l = 0, nextMarked = false;
+  const rows = sch.map((g,i) => {
+    const r = byId[g.id], fin = g.state==='final', pts = r ? r.pts : g.pts, opts = r ? r.opts : g.opts;
+    let res = '', recAfter = '';
+    if(fin && ok(pts) && ok(opts)){ const win = pts > opts; win ? w++ : l++; res = '<span class="'+(win?'W':'L')+'">'+(win?'W':'L')+'</span> '+pts+'-'+opts+' <span class="note">('+sgn(pts-opts,0)+')</span>'; recAfter = w+'-'+l; }
+    else if(g.state==='live') res = '<span class="live">Live now</span>';
+    else res = '<span class="note">'+esc(fTime(g.date))+'</span>';
+    const isNext = !fin && !nextMarked; if(isNext) nextMarked = true;
+    const t = X.byAb[g.opp];
+    return '<tr'+(isNext?' class="next"':'')+'><td class="rk num">'+(i+1)+'</td><td class="l">'+esc(fDay(g.date))+'</td>'
+      + '<td class="l"><span class="ha'+(g.home?' h':'')+'">'+(g.home?'vs':'@')+'</span> <span class="team"><span class="dot" style="background:'+esc(t?t.color:'#999')+'"></span>'+esc(g.oppName||g.opp)+'</span></td>'
+      + '<td class="l">'+res+'</td><td class="num">'+(recAfter||'')+'</td><td class="l">'+esc(place(g))+'</td><td class="l note">'+(fin?'':esc((g.tv||[]).join(', ')))+'</td></tr>';
+  });
+  const shown = state.schedAll ? rows : rows.slice(0,20), played = sch.filter(g=>g.state==='final').length;
+  h += '<div class="lgd"><span>'+played+' played, '+(sch.length-played)+' to go.</span><span><b style="background:var(--b);height:3px;vertical-align:3px"></b>Next game</span>'+(sch.length<(D.seasonGames||82)?'<span>ESPN lists '+sch.length+' games so far; the NBA adds the last '+((D.seasonGames||82)-sch.length)+' after NBA Cup group play.</span>':'')+'</div>';
+  h += '<div class="panel"><div class="scroll"><table><thead><tr><th class="rk">#</th><th class="l">Date</th><th class="l">Opponent</th><th class="l">Result or tip time</th><th data-d="Jazz record after this game">Record</th><th class="l">Location</th><th class="l">TV</th></tr></thead><tbody>'+shown.join('')+'</tbody></table></div>'
+    + (rows.length > 20 ? '<button class="more" data-sched="1">'+(state.schedAll ? 'Show only the first 20 games' : 'Show all '+rows.length+' games')+'</button>' : '') + '</div>';
+  $('#schedule').innerHTML = h;
+}
+const place = g => { const v = g.venue||'', c = g.city||''; return c && !v.includes(c) ? (v ? v+' ('+c+')' : c) : v; };
 function nextGames(X){
-  const U = (D.upcoming||[]).slice(0,10);
+  const U = (D.schedule ? D.schedule.filter(g => g.state!=='final').map(g => Object.assign({}, g, {live: g.state==='live'})) : (D.upcoming||[])).slice(0,10);
   if(!U.length) return '<div class="empty">No upcoming games in the schedule.</div>';
   return '<table><thead><tr><th class="l">Date</th><th class="l">Time</th><th class="l">Opponent</th><th data-d="Opponent\'s record this season">Opp. record</th><th class="l">Location</th><th class="l">TV</th></tr></thead><tbody>'
     + U.map(u => { const t = X.byAb[u.opp];
       return '<tr><td class="l">'+esc(fDay(u.date))+'</td><td class="l">'+(u.live?'<span class="live">Live now</span>':esc(fTime(u.date)))+'</td>'
         + '<td class="l"><span class="ha'+(u.home?' h':'')+'">'+(u.home?'vs':'@')+'</span> <span class="team"><span class="dot" style="background:'+esc(t?t.color:'#999')+'"></span>'+esc(u.oppName||u.opp)+'</span></td>'
-        + '<td class="num">'+(t?t.w+'-'+t.l:'–')+'</td><td class="l">'+esc((u.home?'Home':'Away')+(u.venue?', '+u.venue:'')+(u.city?' ('+u.city+')':''))+'</td><td class="l note">'+esc((u.tv||[]).join(', ')||'–')+'</td></tr>'; }).join('')
+        + '<td class="num">'+(t?t.w+'-'+t.l:'–')+'</td><td class="l">'+esc((u.home?'Home':'Away')+(place(u)?', '+place(u):''))+'</td><td class="l note">'+esc((u.tv||[]).join(', ')||'–')+'</td></tr>'; }).join('')
     + '</tbody></table>';
 }
 function marginChart(G){
@@ -827,13 +860,14 @@ document.addEventListener('pointerout', e => { const g = e.target.closest && e.t
 addEventListener('scroll', hideTip, {passive:true});
 
 /* ---------- wiring ---------- */
-function renderAll(){ renderTabs(); renderHero(); renderOverview(); renderVsLeague(); renderLeagueTable(); renderPlayers(); renderLineups(); renderOnOff(); renderShots(); renderModels(); renderH2H(); }
+function renderAll(){ renderTabs(); renderHero(); renderOverview(); renderSchedule(); renderVsLeague(); renderLeagueTable(); renderPlayers(); renderLineups(); renderOnOff(); renderShots(); renderModels(); renderH2H(); }
 const RENDER = {lt:renderLeagueTable, pl:renderPlayers, lu:renderLineups};
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-dash],[data-ins],[data-lt],[data-pm],[data-lu],[data-lumin],[data-sc],[data-mdl],[data-ts]');
+  const t = e.target.closest('[data-dash],[data-sched],[data-ins],[data-lt],[data-pm],[data-lu],[data-lumin],[data-sc],[data-mdl],[data-ts]');
   if(!t) return;
   const d = t.dataset;
-  if(d.dash){ state.dash = d.dash; hideTip(); renderTabs(); history.replaceState(null,'','#'+d.dash); const tb = $('#tabs'); if(tb.getBoundingClientRect().top < 0 || scrollY > tb.offsetTop) scrollTo({top: tb.offsetTop, behavior:'instant'}); }
+  if(d.sched){ state.schedAll = !state.schedAll; renderSchedule(); if(!state.schedAll) $('#schedule').scrollIntoView({block:'start'}); }
+  else if(d.dash){ state.dash = d.dash; hideTip(); renderTabs(); history.replaceState(null,'','#'+d.dash); const tb = $('#tabs'); if(tb.getBoundingClientRect().top < 0 || scrollY > tb.offsetTop) scrollTo({top: tb.offsetTop, behavior:'instant'}); }
   else if(d.ins){ state.ins = d.ins; renderVsLeague(); }
   else if(d.lt){ state.lt = d.lt; renderLeagueTable(); }
   else if(d.pm){ state.pm = d.pm; renderPlayers(); }
