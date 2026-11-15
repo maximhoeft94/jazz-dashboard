@@ -436,8 +436,8 @@ function renderOverview(){
     + chip(rec(G.filter(g=>g.home)),'Home') + chip(rec(G.filter(g=>!g.home)),'Road') + chip(rec(G.slice(-10)),'Last '+Math.min(10,G.length))
     + '</div></div>';
   h += kpiRows(X, G, streak) + '<div style="height:18px"></div>';
-  h += '<div class="panel scroll" style="margin-bottom:14px"><div class="pad" style="padding-bottom:4px"><h3 style="font-family:var(--font-d);font-weight:600;font-size:21px;margin:0">Next 10 games</h3></div>'+nextGames(X)+'</div>';
-  h += '<div class="panel card"><h3>Point differential by game</h3><div class="lgd"><span><b style="background:var(--good)"></b>Win</span><span><b style="background:var(--bad)"></b>Loss</span><span>Hover a bar for the score.</span></div>'+marginChart(G)+'</div>';
+  h += '<div class="panel card" style="margin-bottom:14px"><h3>Point differential by game</h3><div class="lgd"><span><b style="background:var(--good)"></b>Win</span><span><b style="background:var(--bad)"></b>Loss</span><span>Hover a bar for the score.</span></div>'+marginChart(G)+'</div>';
+  h += '<div class="panel scroll"><div class="pad" style="padding-bottom:4px"><h3 style="font-family:var(--font-d);font-weight:600;font-size:21px;margin:0">Next 10 games</h3></div>'+nextGames(X)+'</div>';
   h += '<hr class="seg"><div class="appx">Appendix</div><div id="ovSched"></div>';
   $('#overview').innerHTML = h;
   renderSchedule();
