@@ -9,39 +9,35 @@ jobs:
         shell: python
         run: |
           import json, urllib.request, time
-          H = {"User-Agent": "Mozilla/5.0", "Referer": "https://www.nba.com/", "Origin": "https://www.nba.com"}
-          def get(u):
-              t = time.time()
-              with urllib.request.urlopen(urllib.request.Request(u, headers=H), timeout=30) as r:
-                  b = r.read()
-              print("OK", u, len(b), "bytes", round(time.time() - t, 2), "s")
-              return json.loads(b)
-          def shape(o, d=0, maxd=4):
-              if d > maxd: return "..."
-              if isinstance(o, dict): return {k: shape(v, d + 1, maxd) for k, v in list(o.items())[:60]}
-              if isinstance(o, list): return [shape(o[0], d + 1, maxd), "len=%d" % len(o)] if o else []
-              return o
-          s = get("https://cdn.nba.com/static/json/staticData/scheduleLeagueV2.json")
-          ls = s["leagueSchedule"]; print("season", ls.get("seasonYear"), "dates", len(ls["gameDates"]))
-          g0 = ls["gameDates"][0]["games"][0]; print("GAME KEYS", json.dumps(shape(g0, maxd=2))[:3000])
-          uta = [g for d in ls["gameDates"] for g in d["games"] if "UTA" in (g["homeTeam"]["teamTricode"], g["awayTeam"]["teamTricode"]) and g["gameStatus"] == 3 and g["gameId"].startswith("002")]
-          print("UTA finals", len(uta), [g["gameId"] for g in uta])
-          gid = uta[-1]["gameId"]
-          b = get("https://cdn.nba.com/static/json/liveData/boxscore/boxscore_%s.json" % gid)
-          print("BOX", json.dumps(shape(b, maxd=5))[:6000])
-          p = get("https://cdn.nba.com/static/json/liveData/playbyplay/playbyplay_%s.json" % gid)
-          acts = p["game"]["actions"]; print("PBP actions", len(acts))
-          seen = {}
-          for a in acts:
-              k = (a.get("actionType"), a.get("subType"))
-              if k not in seen: seen[k] = a
-          for k, a in list(seen.items())[:40]: print("ACT", k, json.dumps(a)[:900])
-          for gidp in ["0022500001", "0022501230"]:
-              try: get("https://cdn.nba.com/static/json/liveData/boxscore/boxscore_%s.json" % gidp)
-              except Exception as e: print("FAIL", gidp, e)
-          try: get("https://cdn.nba.com/static/json/liveData/playbyplay/playbyplay_0022500500.json")
-          except Exception as e: print("FAIL old pbp", e)
-          try:
-              u = "https://stats.nba.com/stats/leaguedashteamstats?LeagueID=00&Season=2026-27&SeasonType=Regular+Season&MeasureType=Base&PerMode=PerGame"
-              get(u)
-          except Exception as e: print("FAIL stats", e)
+          UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+          variants = {
+            "none": {},
+            "ua": {"User-Agent": UA},
+            "ua+ref": {"User-Agent": UA, "Referer": "https://www.nba.com/", "Accept": "application/json"},
+            "full": {"User-Agent": UA, "Referer": "https://www.nba.com/", "Origin": "https://www.nba.com", "Accept": "*/*", "Accept-Language": "en-US,en;q=0.9"},
+          }
+          urls = [
+            "https://cdn.nba.com/static/json/staticData/scheduleLeagueV2.json",
+            "https://cdn.nba.com/static/json/liveData/scoreboard/todaysScoreboard_00.json",
+            "https://cdn.nba.com/static/json/liveData/boxscore/boxscore_0022500001.json",
+            "https://cdn.nba.com/static/json/liveData/playbyplay/playbyplay_0022500001.json",
+            "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/26/schedule",
+            "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard",
+            "https://www.basketball-reference.com/teams/UTA/2027.html",
+          ]
+          for u in urls:
+              for name, h in variants.items():
+                  t = time.time()
+                  try:
+                      with urllib.request.urlopen(urllib.request.Request(u, headers=h), timeout=20) as r:
+                          b = r.read()
+                      print("OK  ", name, u, len(b), round(time.time()-t, 2))
+                      break
+                  except Exception as e:
+                      print("FAIL", name, u, str(e)[:80])
+      - name: Probe with curl
+        run: |
+          for u in https://cdn.nba.com/static/json/staticData/scheduleLeagueV2.json https://cdn.nba.com/static/json/liveData/boxscore/boxscore_0022500001.json; do
+            curl -sS -m 20 -o /dev/null -w "curl %{http_code} %{size_download} $u\n" -A "Mozilla/5.0" "$u" || true
+            curl -sS -m 20 -o /dev/null -w "curl-h2 %{http_code} %{size_download} $u\n" --http2 -H "accept: application/json" -H "referer: https://www.nba.com/" -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36" "$u" || true
+          done
