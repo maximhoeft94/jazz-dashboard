@@ -81,6 +81,8 @@ tr.next td{box-shadow:inset 0 2px 0 var(--b)}
 .kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border:1px solid var(--line);border-radius:8px;background:var(--panel);overflow:hidden}
 .kpi{padding:14px 16px;border-right:1px solid var(--line)}
 .kpi:last-child{border-right:0}
+.kpi.open{background:repeating-linear-gradient(135deg,transparent 0 8px,var(--soft) 8px 16px)}
+.kpi.open .kl{color:#b5b0c6}
 .kl{font-size:13px;color:var(--muted)}
 .kv{font-family:var(--font-d);font-weight:700;font-size:34px;line-height:1.05;margin-top:2px}
 .ks{font-size:13px;color:var(--muted);margin-top:2px}
@@ -354,12 +356,12 @@ function kpiRows(X, G, streak){
     + kpi('Net rating', sgn(J.net), rkBadge(r('net',1),n,1)+' Points per 100 possessions, margin')
     + kpi('Offense', num(J.ortg,1), rkBadge(r('ortg',1),n,1)+' Points scored per 100')
     + kpi('Defense', num(J.drtg,1), rkBadge(r('drtg',-1),n,-1)+' Points allowed per 100')
-    + kpi('Pace', num(J.pace,1), ord(r('pace',0)||n)+' fastest, possessions per 48');
-  const row2 = kpi('Points for', pf.toLocaleString('en-US'), 'Total scored in '+G.length+' games')
-    + kpi('Points against', pa.toLocaleString('en-US'), rkBadge(r('opp',-1),n,-1)+' Total allowed, '+num(G.length?pa/G.length:null,1)+' per game')
+    + kpi('Average margin', sgn(J.pm), rkBadge(r('pm',1),n,1)+' Points per game, scored minus allowed');
+  const row2 = kpi('Points per game', num(J.pts,1), rkBadge(r('pts',1),n,1)+' Jazz scoring average')
+    + kpi('Opponent points per game', num(J.opp,1), rkBadge(r('opp',-1),n,-1)+' Allowed per game')
     + kpi('Streak', streak, G.length ? 'Current run of '+(streak[0]==='W'?'wins':'losses') : 'No games yet')
-    + kpi('Points per game', num(J.pts,1), rkBadge(r('pts',1),n,1)+' Scoring average')
-    + kpi('Point differential', sgn(pf-pa,0), rkBadge(r('pm',1),n,1)+' '+sgn(G.length?(pf-pa)/G.length:null)+' per game');
+    + kpi('Point differential', sgn(pf-pa,0), 'Season total, '+G.length+' games')
+    + '<div class="kpi open" aria-hidden="true"><div class="kl">Open slot</div></div>';
   return '<div class="kpis">'+row1+'</div><div class="kpis" style="margin-top:10px">'+row2+'</div>';
 }
 
@@ -416,7 +418,7 @@ function renderOverview(){
   let h = '<div class="sh"><h2>Team Performance</h2><span class="note">'+esc(state.season)+' regular season</span></div>';
   h += '<div class="rec"><div class="big num">'+J.w+'-'+J.l+'<small>Record, '+ord(rankOf(X.teams,'wpct',1,J.ab)||n)+' of '+n+' in win %</small></div><div class="chips">'
     + chip(rec(G.filter(g=>g.home)),'Home') + chip(rec(G.filter(g=>!g.home)),'Road') + chip(rec(G.slice(-10)),'Last '+Math.min(10,G.length))
-    + chip(sgn(mean(G.map(g=>g.margin))),'Avg. margin') + '</div></div>';
+    + '</div></div>';
   h += kpiRows(X, G, streak) + '<div style="height:18px"></div>';
   h += '<div class="panel scroll" style="margin-bottom:14px"><div class="pad" style="padding-bottom:4px"><h3 style="font-family:var(--font-d);font-weight:600;font-size:21px;margin:0">Next 10 games</h3></div>'+nextGames(X)+'</div>';
   h += '<div class="panel card"><h3>Point differential by game</h3><div class="lgd"><span><b style="background:var(--good)"></b>Win</span><span><b style="background:var(--bad)"></b>Loss</span><span>Hover a bar for the score.</span></div>'+marginChart(G)+'</div>';
