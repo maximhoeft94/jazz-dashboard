@@ -1,8 +1,7 @@
 name: Refresh Jazz data
 
 on:
-  schedule:
-    - cron: "23 12 * * *"   # daily at 12:23 UTC (5:23 AM Mountain in winter)
+  # Daily schedule paused until the data pull is switched to a source GitHub can reach.
   workflow_dispatch:         # "Run workflow" button on the Actions tab
 
 permissions:
