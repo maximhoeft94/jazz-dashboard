@@ -39,7 +39,7 @@ COLORS = {
     "NOP": "#0c2340", "NYK": "#f58426", "OKC": "#007ac1", "ORL": "#0077c0", "PHI": "#006bb6", "PHX": "#e56020",
     "POR": "#e03a3e", "SAC": "#5a2d81", "SAS": "#8a8d8f", "TOR": "#ce1141", "UTA": "#4b2a85", "WAS": "#002b5c",
 }
-CACHE_VERSION = 2
+CACHE_VERSION = 3
 TOV_TYPES = ("urnover", "Traveling", "Double Dribble", "Discontinued Dribble", "3-Second")
 ESPN_KEYS = {"minutes": "min", "points": "pts", "fieldGoalsMade-fieldGoalsAttempted": "fg",
              "threePointFieldGoalsMade-threePointFieldGoalsAttempted": "fg3", "freeThrowsMade-freeThrowsAttempted": "ft",
@@ -151,7 +151,12 @@ def extract_game(s):
         return None
     comp = {x["homeAway"]: x for x in c["competitors"]}
     home, away = ab(comp["home"]["team"]["abbreviation"]), ab(comp["away"]["team"]["abbreviation"])
-    tid = {comp["home"]["team"]["id"]: home, comp["away"]["team"]["id"]: away}
+    note = h.get("gameNote") or ""
+    if home not in COLORS or away not in COLORS:
+        return dict(id=h["id"], skip="not two NBA teams (All-Star or exhibition)")
+    if re.search(r"Cup", note, re.I) and re.search(r"Championship|Final(?!s? ?-? ?Group)", note, re.I) and not re.search(r"Semi|Quarter", note, re.I):
+        return dict(id=h["id"], skip="NBA Cup championship (does not count in the standings)")
+    tid = {comp["home"]["team"].get("id"): home, comp["away"]["team"].get("id"): away}
     plays = sorted(s.get("plays", []), key=lambda p: int(p.get("sequenceNumber") or 0))
     periods = max([len(comp["home"].get("linescores", []))] + [p["period"]["number"] for p in plays] + [4])
     g = dict(id=h["id"], d=local_date(c["date"]), home=home, away=away, hs=i0(comp["home"].get("score")),
@@ -179,7 +184,9 @@ def extract_game(s):
                 continue
             v = dict(zip(keys, ath["stats"]))
             fgm, fga = pair(v.get("fg")); m3, a3 = pair(v.get("fg3")); ftm, fta = pair(v.get("ft"))
-            at = ath["athlete"]
+            at = ath.get("athlete") or {}
+            if not at.get("id"):
+                continue
             # [id, name, pos, num, starter, min, pts, fgm, fga, fg3m, fg3a, ftm, fta, reb, ast, tov, stl, blk, oreb, dreb, pf, pm]
             rows.append([at["id"], at.get("displayName", ""), (at.get("position") or {}).get("abbreviation", ""), at.get("jersey", ""),
                          1 if ath.get("starter") else 0, i0(v.get("min")), i0(v.get("pts")), fgm, fga, m3, a3, ftm, fta,
@@ -194,14 +201,15 @@ def extract_game(s):
         x, y = co.get("x"), co.get("y")
         team = tid.get((p.get("team") or {}).get("id"))
         parts = p.get("participants") or []
-        if x is None or y is None or abs(x) > 1000 or abs(y) > 1000 or not team or not parts:
+        shooter = ((parts[0] if parts else {}).get("athlete") or {}).get("id")
+        if x is None or y is None or abs(x) > 1000 or abs(y) > 1000 or not team or not shooter:
             continue
         dx, dy = x - 25.0, float(y)
         m = re.search(r"(\d+)-foot", p.get("text", ""))
         dist = float(m.group(1)) if m else math.hypot(dx, dy)
         three = 1 if p.get("pointsAttempted") == 3 else 0
         zb, za, zr = zone(dx, dy, three, dist)
-        g["shots"].append([team, parts[0]["athlete"]["id"], round(dx * 10), round(dy * 10), 1 if p.get("scoringPlay") else 0, three, zb, za, zr])
+        g["shots"].append([team, shooter, round(dx * 10), round(dy * 10), 1 if p.get("scoringPlay") else 0, three, zb, za, zr])
 
     if JAZZ in (home, away):
         g["stints"] = jazz_stints(plays, g, tid)
@@ -226,7 +234,7 @@ def jazz_stints(plays, g, tid):
             # period starters: Jazz players whose first appearance in the period is anything other than checking in
             first = {}
             for p in evs:
-                ids = [x["athlete"]["id"] for x in (p.get("participants") or []) if x.get("athlete")]
+                ids = [(x.get("athlete") or {}).get("id") for x in (p.get("participants") or [])]
                 is_sub = p["type"].get("text") == "Substitution"
                 for k, pid in enumerate(ids):
                     if pid in jz_ids and pid not in first:
@@ -269,8 +277,8 @@ def jazz_stints(plays, g, tid):
                 elif any(k in typ for k in TOV_TYPES):
                     side[3] += 1
             if typ == "Substitution" and team == JAZZ:
-                ids = [x["athlete"]["id"] for x in (p.get("participants") or [])]
-                if len(ids) >= 2:
+                ids = [(x.get("athlete") or {}).get("id") for x in (p.get("participants") or [])]
+                if len(ids) >= 2 and ids[0] and ids[1]:
                     flush()
                     on.discard(ids[1])
                     on.add(ids[0])
@@ -323,7 +331,10 @@ def collect_games(season, cache, fetch, log, today):
             games[gid] = rec
         if n % 100 == 0:
             log("    downloaded %d / %d" % (n, len(todo)))
-    return [games[i] for i in ids if i in games]
+    skipped = [games[i]["skip"] for i in ids if i in games and games[i].get("skip")]
+    if skipped:
+        log("  %s: left out %d games: %s" % (season, len(skipped), "; ".join(sorted(set(skipped)))))
+    return [games[i] for i in ids if i in games and not games[i].get("skip")]
 
 
 def poss_est(t, o):
