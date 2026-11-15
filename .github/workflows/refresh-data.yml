@@ -1,8 +1,9 @@
 name: Refresh Jazz data
 
 on:
-  # Daily schedule paused until the data pull is switched to a source GitHub can reach.
-  workflow_dispatch:         # "Run workflow" button on the Actions tab
+  schedule:
+    - cron: "17 */2 * * *"   # every 2 hours; commits only when a new game has finished
+  workflow_dispatch:          # "Run workflow" button on the Actions tab
 
 permissions:
   contents: write
@@ -15,7 +16,7 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -23,8 +24,14 @@ jobs:
         with:
           python-version: "3.12"
 
-      # stats.nba.com sometimes blocks cloud runners. If the pull fails, nothing is committed.
-      - name: Pull the seasons
+      # Per-game records, so each run only downloads games finished since the last one
+      - uses: actions/cache@v4
+        with:
+          path: games_cache.json
+          key: games-${{ github.run_id }}
+          restore-keys: games-
+
+      - name: Pull the seasons from ESPN
         run: python fetch_jazz.py
 
       - name: Commit if the data changed

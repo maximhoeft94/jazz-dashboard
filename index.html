@@ -604,9 +604,9 @@ function renderShots(){
   let h = '<div class="sh"><h2>Shot chart</h2><span class="note">Every Jazz field goal attempt, '+esc(state.season)+'.</span></div>';
   if(!X.shots.length){ $('#shots').innerHTML = h + '<div class="panel empty">Shot data is not loaded yet. Run <code>python fetch_jazz.py</code>.</div>'; return; }
   const counts = {}; X.shots.forEach(s => counts[s.p] = (counts[s.p]||0)+1);
-  const pids = Object.keys(counts).map(Number).sort((a,b)=>counts[b]-counts[a]);
+  const pids = Object.keys(counts).sort((a,b)=>counts[b]-counts[a]);
   if(state.scP!=='ALL' && !counts[state.scP]) state.scP = 'ALL';
-  const SH = state.scP==='ALL' ? X.shots : X.shots.filter(s => s.p===+state.scP);
+  const SH = state.scP==='ALL' ? X.shots : X.shots.filter(s => String(s.p)===String(state.scP));
   h += '<div class="pills">'+[['hex','Hot and cold vs. league'],['dots','Makes and misses']].map(p=>'<button class="pill'+(state.scMode===p[0]?' on':'')+'" data-sc="'+p[0]+'">'+p[1]+'</button>').join('')+'</div>';
   let svg = '<svg class="court" viewBox="-252 -352 504 402" role="img" aria-label="Shot chart">'+courtLines();
   if(state.scMode==='hex'){
@@ -752,7 +752,7 @@ function renderH2H(){
   if(jz.length < 1 || pool.length < 10){ $('#h2h').innerHTML = h + '<div class="panel empty">Not enough minutes played yet for percentiles.</div>'; return; }
   const all = {}; X.league.forEach(p => all[p.id] = p); jz.forEach(p => all[p.id] = p);
   if(!all[state.pA]) state.pA = jz[0].id;
-  if(!all[state.pB] || state.pB===state.pA) state.pB = (jz[1]||pool[0]).id;
+  if(!all[state.pB] || String(state.pB)===String(state.pA)) state.pB = (jz[1]||pool[0]).id;
   const A = all[state.pA], B = all[state.pB];
   const sorted = {}; RAD.forEach(([k]) => sorted[k] = pool.map(p=>p[k]).filter(ok).sort((a,b)=>a-b));
   const pctl = (k,v,dir) => { const s = sorted[k]; if(!ok(v)||!s.length) return 0; let lo=0, hi=s.length; while(lo<hi){ const m=(lo+hi)>>1; if(s[m] <= v) lo=m+1; else hi=m; } const f = lo/s.length; return 100*(dir===-1 ? 1-f : f); };
@@ -820,14 +820,14 @@ document.addEventListener('click', e => {
 document.addEventListener('change', e => {
   const s = e.target.closest('[data-sel]'); if(!s) return;
   const k = s.dataset.sel;
-  if(k==='scP'){ state.scP = s.value==='ALL' ? 'ALL' : +s.value; renderShots(); }
-  else { state[k] = +s.value; if(state.pA===state.pB){ const X = S(), o = X.jazz.find(p => p.id!==state.pA); if(o) state[k==='pA'?'pB':'pA'] = o.id; } renderH2H(); }
+  if(k==='scP'){ state.scP = s.value; renderShots(); }
+  else { state[k] = s.value; if(String(state.pA)===String(state.pB)){ const X = S(), o = X.jazz.find(p => String(p.id)!==String(state.pA)); if(o) state[k==='pA'?'pB':'pA'] = String(o.id); } renderH2H(); }
 });
 
 const fTS = s => new Date(s).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
 $('#asof').textContent = (D.sample ? 'Sample data' : 'Updated '+(D.updatedAt ? fTS(D.updatedAt) : D.generated));
 if(D.sample) $('#banner').innerHTML = '<div class="banner"><b>Sample data.</b> Every number and Jazz player name on this page is simulated so you can try each feature. Run <code>python fetch_jazz.py</code> on your computer to load the real seasons.</div>';
-$('#foot').innerHTML = D.sample ? 'Simulated sample seasons for layout testing. Not real NBA results.' : 'Data from stats.nba.com (regular season only), pulled '+esc(D.generated)+'. Not affiliated with or endorsed by the NBA or the Utah Jazz.';
+$('#foot').innerHTML = D.sample ? 'Simulated sample seasons for layout testing. Not real NBA results.' : 'Box scores and play-by-play from ESPN (regular season only); every rating, lineup, and model on this page is computed from them. Updated '+esc(D.updatedAt ? fTS(D.updatedAt) : D.generated)+'. Not affiliated with or endorsed by the NBA, ESPN, or the Utah Jazz.';
 renderAll();
 })();
 </script>

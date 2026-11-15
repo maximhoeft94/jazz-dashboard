@@ -10,7 +10,7 @@ A single-page analytics dashboard for the Utah Jazz: team stats against the rest
 |---|---|
 | ![Shot chart](screenshots/shot-chart.png) | ![Lineups](screenshots/lineups.png) |
 
-*Screenshots show the simulated sample season the repo ships with until `fetch_jazz.py` is run.*
+
 
 ## What it does
 
@@ -31,39 +31,38 @@ A single-page analytics dashboard for the Utah Jazz: team stats against the rest
 ## How it works
 
 ```
-stats.nba.com --(fetch_jazz.py)--> JSON embedded in index.html --> vanilla JS + inline SVG
+ESPN box scores + play-by-play --(fetch_jazz.py)--> JSON embedded in index.html --> vanilla JS + inline SVG
 ```
 
 - `index.html` is the whole dashboard: HTML, CSS, JavaScript, and the season data. Every chart is hand-built inline SVG.
-- `fetch_jazz.py` pulls the seasons and rewrites the data block between the `/*DATA_START*/` and `/*DATA_END*/` markers in `index.html`.
-- Finished seasons are cached in `jazz_cache.json`, so a refresh only re-pulls the current season (about 14 requests).
+- `fetch_jazz.py` downloads every regular-season game's box score and play-by-play from ESPN's public API and computes everything else:
+  - **Team ratings, pace, and four factors** from both teams' box scores, using Basketball-Reference's possession estimate
+  - **League player stats and percentiles** from every box score (usage, true shooting, assist and rebound rates, PIE)
+  - **Jazz lineups, on/off, and on-court ratings** by following which five Jazz players are on the floor through every substitution. Tracked minutes match the official box score within about a minute, and points match the final score exactly
+  - **Shot charts and league zone averages** from every shot's x/y location, sorted into the NBA's shot-chart zones
+- Each finished game is reduced to a small record in `games_cache.json` (kept between runs by the workflow), so a refresh only downloads games played since the last one. A finished season's output is saved in `jazz_cache.json`.
 
 ## Stack
 
 - HTML, CSS, and vanilla JavaScript, with no frameworks or chart libraries
 - Python 3.9+ standard library only, for the data pull
-- GitHub Actions for the daily data refresh, and GitHub Pages for hosting
+- GitHub Actions for the refresh (every 2 hours, committing only when a game has finished), and GitHub Pages for hosting
 
 ## Run it
 
-View it: open `index.html` in a browser.
+View it: open `index.html` in a browser, or visit the live link.
 
-Load real data (the repo ships with simulated sample data until you do):
+Refresh the data: the repo refreshes itself. To refresh right away, open the **Actions** tab, pick **Refresh Jazz data**, and click **Run workflow**. To run it yourself:
 
 ```
 python fetch_jazz.py                       # current + previous season
 python fetch_jazz.py --seasons 2026-27     # one season
-python fetch_jazz.py --sample              # rebuild the simulated sample
 ```
 
-**Run the first pull on your own computer.** stats.nba.com often refuses or hangs on requests from cloud servers, including some GitHub Actions runners. The daily workflow (`.github/workflows/refresh-data.yml`) tries anyway; if it times out, the run fails without touching the page, and you can refresh from your machine and push.
-
-## Endpoints
-
-All under `https://stats.nba.com/stats/`: `leaguedashteamstats` (Base, Advanced, Four Factors), `leaguegamelog`, `leaguedashplayerstats` (league-wide and Jazz-only, Base and Advanced), `commonteamroster`, `leaguedashlineups` (5 and 2 players), `teamplayeronoffsummary`, `shotchartdetail`.
+The first run downloads about 1,400 games (both seasons) and takes 10 to 20 minutes; later runs take under a minute.
 
 ## Data
 
-Data comes from the NBA's public, undocumented stats API, which can change without notice. This project is not affiliated with or endorsed by the NBA or the Utah Jazz.
+Box scores and play-by-play come from ESPN's public, undocumented API, which can change without notice. NBA.com's own stats API is not used because it refuses requests from GitHub's servers. Advanced numbers are computed here with standard formulas, so they can differ slightly from NBA.com's official figures. This project is not affiliated with or endorsed by the NBA, ESPN, or the Utah Jazz.
 
 Built by Maxim Hoeft.
