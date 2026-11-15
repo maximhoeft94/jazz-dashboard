@@ -14,19 +14,19 @@ A single-page analytics dashboard for the Utah Jazz: team stats against the rest
 
 ## What it does
 
-- **Season tabs** (current and previous season) that switch every section
-- **Jazz vs. the league:** 22 team stats with the league average, the Jazz's rank, and a strip plot showing where they sit among all 30 teams. Also a game-by-game margin chart with a rolling average, Dean Oliver's four factors, and splits (home/road, vs. .500 teams, close games, by month)
-- **League table** of all 30 teams (traditional, advanced, four factors), sortable, with a league-average row
+The current Jazz season, split into dashboards (tabs), under a header with the record, net rating, offense, defense, and pace:
+
+- **Team Performance (Overview):** the record with home/road, last 10, and streak; the next 10 games with tip time (Mountain), opponent and their record, arena, and TV; and a point-differential bar for every game played
+- **Jazz vs. League:** 22 team stats with the league average, the Jazz's rank, and a strip plot of all 30 teams; Dean Oliver's four factors; and splits (home/road, vs. .500 teams, close games, by month)
+- **League Table:** all 30 teams (traditional, advanced, four factors), sortable, with a league-average row
 - **Players:** per game, per 36, totals, advanced, and shooting views, counting Jazz games only
-- **Lineup combinations:** 5-man units and 2-man pairs with a minutes filter, plus an offense-vs-defense scatter
-- **On/off court:** Jazz net rating with each player on the floor minus with him off
-- **Shot chart:** every Jazz field goal attempt, as hot/cold hexagons compared with the league's FG% from the same zone, or as makes and misses, with a zone table
-- **Statistical models**, computed in the browser:
-  - Expected wins (Pythagorean, exponent 14) for all 30 teams
-  - Shot quality vs. shot making: expected eFG% from shot locations against actual eFG%
-  - Lineup impact: a small ridge-regression adjusted plus-minus fitted on the Jazz's 5-man lineups
-  - Four-factor model: a regression of net rating on the four factor margins, and where the Jazz gain and lose against an average team
-- **Player vs. player radar:** any Jazz player against any Jazz or NBA player, in league percentiles
+- **Lineups:** 5-man units and 2-man pairs with a minutes filter, plus an offense-vs-defense scatter
+- **On/Off:** Jazz net rating with each player on the floor minus with him off
+- **Shot Chart:** every Jazz field goal attempt, as hot/cold hexagons against the league's FG% from the same zone, or as makes and misses
+- **Models**, computed in the browser: expected wins (Pythagorean), shot quality vs. shot making, a ridge-regression lineup impact model, and a four-factor regression
+- **Player vs. Player:** any Jazz player against any NBA player, in league percentiles
+
+Each dashboard has its own link (for example `#players`), so you can share a specific tab.
 
 ## How it works
 
@@ -55,11 +55,11 @@ View it: open `index.html` in a browser, or visit the live link.
 Refresh the data: the repo refreshes itself. To refresh right away, open the **Actions** tab, pick **Refresh Jazz data**, and click **Run workflow**. To run it yourself:
 
 ```
-python fetch_jazz.py                       # current + previous season
-python fetch_jazz.py --seasons 2026-27     # one season
+python fetch_jazz.py                                # the current season
+python fetch_jazz.py --seasons 2026-27 2025-26      # several seasons (adds season tabs data)
 ```
 
-The first run downloads about 1,400 games (both seasons) and takes 10 to 20 minutes; later runs take under a minute.
+The first run of a season downloads every game played so far (a few minutes); later runs only download new games and take under a minute.
 
 ## Data
 

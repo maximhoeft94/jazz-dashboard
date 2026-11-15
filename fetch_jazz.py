@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Pull Utah Jazz and league data from ESPN's public NBA API and embed it in index.html.
 
-    python fetch_jazz.py                          # current + previous season, rewrites ./index.html
-    python fetch_jazz.py --seasons 2026-27        # one season only
+    python fetch_jazz.py                          # current season, rewrites ./index.html
+    python fetch_jazz.py --seasons 2026-27 2025-26  # several seasons
     python fetch_jazz.py --html docs/index.html
 
 Regular season only. Needs Python 3.9+ and no third-party packages.
@@ -22,6 +22,7 @@ Endpoints (no key needed), under https://site.api.espn.com/apis/site/v2/sports/b
     scoreboard?dates=YYYYMMDD    games on a date
     summary?event=ID             box score + play-by-play for one game
     teams/26/roster              Jazz ages, positions, numbers (current season)
+    teams/26/schedule            the Jazz's upcoming games (date, opponent, arena, TV)
 """
 import argparse, datetime as dt, itertools, json, math, re, sys, time
 from pathlib import Path
@@ -499,6 +500,40 @@ def build_season(season, recs, roster_info, log):
                 shots=dict(cols=["p", "x", "y", "m", "zb", "za", "zr", "three", "d"], zb=zb, za=za, zr=zr, rows=rows), zoneAvg=lavg)
 
 
+def upcoming_games(fetch, log, n=10):
+    """The next n Jazz regular-season games that have not finished, with tip time (UTC), opponent, arena and TV."""
+    try:
+        sch = fetch("%s/teams/%s/schedule" % (API, JAZZ_ESPN_ID))
+    except RuntimeError as e:
+        log("  WARNING: schedule unavailable (%s)" % e)
+        return []
+    out = []
+    for e in sorted(sch.get("events", []), key=lambda e: e.get("date", "")):
+        c = (e.get("competitions") or [{}])[0]
+        st = (c.get("status") or {}).get("type") or {}
+        if st.get("completed") or (e.get("seasonType") or {}).get("type", 2) != 2:
+            continue
+        comp = {x.get("homeAway"): x for x in c.get("competitors", [])}
+        if "home" not in comp or "away" not in comp:
+            continue
+        home = ab(comp["home"]["team"].get("abbreviation", "")) == JAZZ
+        opp = comp["away" if home else "home"]["team"]
+        venue = c.get("venue") or {}
+        tv = []
+        for b in c.get("broadcasts", []):
+            name = ((b.get("media") or {}).get("shortName") or "").strip()
+            mkt = ((b.get("market") or {}).get("type") or "")
+            if name and name not in tv and (mkt in ("National", "") or mkt == ("Home" if home else "Away")):
+                tv.append(name)
+        out.append(dict(date=e.get("date"), opp=ab(opp.get("abbreviation", "")), oppName=opp.get("displayName", ""), home=home,
+                        venue=venue.get("fullName", ""), city=(venue.get("address") or {}).get("city", ""), tv=tv,
+                        live=st.get("state") == "in"))
+        if len(out) >= n:
+            break
+    log("  upcoming: %d games" % len(out))
+    return out
+
+
 def roster_info(fetch, log):
     try:
         r = fetch("%s/teams/%s/roster" % (API, JAZZ_ESPN_ID))
@@ -520,6 +555,9 @@ def build_data(seasons, fetch=get_json, log=print, cache_path="jazz_cache.json",
     if gc.get("_v") != CACHE_VERSION:
         gc = {"_v": CACHE_VERSION}
     ros = roster_info(fetch, log)
+    upcoming = upcoming_games(fetch, log)
+    for k in [k for k in gc if k != "_v" and k not in seasons]:
+        del gc[k]  # seasons no longer shown
     out = {}
     for s in seasons:
         if s != cur and s in done:
@@ -541,7 +579,7 @@ def build_data(seasons, fetch=get_json, log=print, cache_path="jazz_cache.json",
         raise RuntimeError("No season returned data. Nothing was written.")
     now = dt.datetime.now(dt.timezone.utc)
     return dict(sample=False, source="ESPN", team=dict(id=JAZZ, ab=JAZZ, name="Utah Jazz"), current=cur if cur in out else list(out)[0],
-                order=[s for s in seasons if s in out], updatedAt=now.strftime("%Y-%m-%dT%H:%M:%SZ"), generated=now.date().isoformat(),
+                order=[s for s in seasons if s in out], upcoming=upcoming, updatedAt=now.strftime("%Y-%m-%dT%H:%M:%SZ"), generated=now.date().isoformat(),
                 seasonGames=82, seasons=out)
 
 
@@ -559,18 +597,18 @@ def embed(html_path, data):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--html", default="index.html", help="dashboard file to update")
-    ap.add_argument("--seasons", nargs="*", help="seasons like 2026-27 2025-26 (default: current and previous)")
+    ap.add_argument("--seasons", nargs="*", help="seasons like 2026-27 2025-26 (default: the current season)")
     ap.add_argument("--cache", default="jazz_cache.json", help="finished-season cache (committed)")
     ap.add_argument("--games-cache", default="games_cache.json", help="per-game cache (kept between runs by the workflow)")
     a = ap.parse_args()
     cur = current_season()
-    data = build_data(a.seasons or [cur, prev_season(cur)], cache_path=a.cache, games_path=a.games_cache)
+    data = build_data(a.seasons or [cur], cache_path=a.cache, games_path=a.games_cache)
     m = re.search(r"/\*DATA_START\*/const DATA = (.*?);/\*DATA_END\*/", Path(a.html).read_text(encoding="utf-8"), re.S)
     try:
         old = json.loads(m.group(1).replace("<\\/", "</")) if m else None
     except json.JSONDecodeError:
         old = None
-    if old and old.get("seasons") == json.loads(json.dumps(data["seasons"])) and old.get("order") == data["order"]:
+    if old and old.get("seasons") == json.loads(json.dumps(data["seasons"])) and old.get("order") == data["order"] and old.get("upcoming") == data["upcoming"]:
         print("No new games since the last refresh; %s left unchanged." % a.html)
         return
     p = embed(a.html, data)

@@ -17,7 +17,7 @@
 <style>
 :root{
   --bg:#f1f0f7; --panel:#ffffff; --ink:#15112a; --muted:#625c78; --line:#dcd9e8; --soft:#f6f5fb;
-  --jazz:#4b2a85; --good:#0b8a4f; --bad:#c8202f;
+  --jazz:#4b2a85; --gold:#e9a825; --good:#0b8a4f; --bad:#c8202f;
   --div:#4b2a85; --a:#4b2a85; --b:#e8590c;
   --hot:#d1495b; --cold:#3b6fb6; --mid:#e6e4ee;
   --font-d:'Barlow Condensed','Arial Narrow','Helvetica Neue',Arial,sans-serif;
@@ -40,9 +40,22 @@ button:focus-visible,select:focus-visible{outline:2px solid var(--div);outline-o
 .banner{background:color-mix(in srgb,var(--b) 14%,var(--panel));border:1px solid color-mix(in srgb,var(--b) 55%,var(--line));border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:14px}
 
 /* tabs */
-.tabs{display:flex;border-bottom:3px solid var(--jazz);overflow-x:auto;scrollbar-width:none}
+.tabs{display:flex;border-bottom:3px solid var(--jazz);overflow-x:auto;scrollbar-width:none;position:sticky;top:0;z-index:5;background:var(--bg);margin-top:26px}
+section[hidden]{display:none}
+.rec{display:flex;align-items:flex-end;gap:28px;flex-wrap:wrap;margin:4px 0 18px}
+.rec .big{font-family:var(--font-d);font-weight:700;font-size:64px;line-height:.9}
+.rec .big small{display:block;font-family:var(--font-b);font-size:13px;font-weight:500;color:var(--muted);margin-top:6px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 12px;min-width:92px}
+.chip b{display:block;font-family:var(--font-d);font-size:22px;line-height:1.1}
+.chip span{font-size:12px;color:var(--muted)}
+.ha{display:inline-block;font-size:12px;font-weight:700;border-radius:4px;padding:1px 6px;background:var(--soft);color:var(--muted);min-width:34px;text-align:center}
+.ha.h{background:color-mix(in srgb,var(--jazz) 14%,transparent);color:var(--jazz)}
+.live{color:var(--bad);font-weight:700}
+.mark .note{fill:var(--gold);stroke:none}
+.mark .note-s{fill:none;stroke:var(--gold);stroke-width:2.6;stroke-linecap:round}
 .tabs::-webkit-scrollbar{display:none}
-.tab{background:none;border:0;border-bottom:5px solid transparent;margin-bottom:-3px;padding:10px 20px 8px;font-family:var(--font-d);font-weight:600;font-size:22px;color:var(--muted);white-space:nowrap}
+.tab{background:none;border:0;border-bottom:5px solid transparent;margin-bottom:-3px;padding:10px 16px 8px;font-family:var(--font-d);font-weight:600;font-size:19px;color:var(--muted);white-space:nowrap}
 .tab:hover{color:var(--ink)}
 .tab.on{color:var(--ink);border-bottom-color:var(--b)}
 .tab small{font-family:var(--font-b);font-size:13px;font-weight:500;margin-left:6px;color:var(--muted)}
@@ -67,7 +80,7 @@ button:focus-visible,select:focus-visible{outline:2px solid var(--div);outline-o
 .rkb{display:inline-block;font-size:12px;font-weight:700;border-radius:4px;padding:0 6px;color:#fff;margin-left:4px;vertical-align:2px}
 
 /* sections */
-section{margin-top:34px}
+section{margin-top:22px}
 .sh{display:flex;align-items:baseline;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:10px}
 h2{font-family:var(--font-d);font-weight:700;font-size:30px;line-height:1;margin:0}
 .note{font-size:13px;color:var(--muted)}
@@ -227,8 +240,9 @@ footer{margin-top:40px;font-size:13px;color:var(--muted);border-top:3px solid va
     <div class="brand">Utah Jazz Dashboard<small id="asof"></small></div>
   </div>
   <div id="banner"></div>
-  <nav class="tabs" id="tabs" role="tablist" aria-label="Season"></nav>
   <div id="hero"></div>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Dashboards"></nav>
+  <section id="overview"></section>
   <section id="vsLeague"></section>
   <section id="leagueTable"></section>
   <section id="players"></section>
@@ -259,8 +273,9 @@ const mean = xs => { xs = xs.filter(ok); return xs.length ? xs.reduce((s,x)=>s+x
 if(!D){ document.body.innerHTML = '<div class="wrap"><div class="empty">No data embedded. Run <code>python fetch_jazz.py</code> to load the seasons.</div></div>'; return; }
 
 /* ---------- state ---------- */
+const DASH_IDS = ['overview','vsLeague','leagueTable','players','lineups','onoff','shots','models','h2h'];
 const state = {
-  season: D.current || D.order[0], ins:'league', lt:'adv', pm:'pg', lu:'5', luMin:null,
+  season: D.current || D.order[0], dash: (DASH_IDS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview'), ins:'league', lt:'adv', pm:'pg', lu:'5', luMin:null,
   scP:'ALL', scMode:'hex', mdl:'pyth', pA:null, pB:null,
   sort:{ lt:{k:'net',d:-1}, pl:{k:'min',d:-1}, lu:{k:'min',d:-1} }
 };
@@ -315,19 +330,17 @@ const rkColor = (r,n) => r==null ? 'var(--muted)' : r <= n/3 ? 'var(--good)' : r
 const rkBadge = (r,n,dir) => r==null ? '' : '<span class="rkb" style="background:'+(dir===0?'var(--muted)':rkColor(r,n))+'">'+ord(r)+'</span>';
 
 /* ---------- tabs + hero ---------- */
+const DASH = [['overview','Team Performance (Overview)'],['vsLeague','Jazz vs. League'],['leagueTable','League Table'],['players','Players'],['lineups','Lineups'],['onoff','On/Off'],['shots','Shot Chart'],['models','Models'],['h2h','Player vs. Player']];
 function renderTabs(){
-  $('#tabs').innerHTML = D.order.map(s => {
-    const t = (D.seasons[s].teams||[]).find(x => x.ab===D.team.ab);
-    return '<button class="tab'+(state.season===s?' on':'')+'" role="tab" aria-selected="'+(state.season===s)+'" data-season="'+s+'">'+s+(t?'<small>'+t.w+'-'+t.l+'</small>':'')+'</button>';
-  }).join('');
+  $('#tabs').innerHTML = DASH.map(([id,lab]) => '<button class="tab'+(state.dash===id?' on':'')+'" role="tab" aria-selected="'+(state.dash===id)+'" aria-controls="'+id+'" data-dash="'+id+'">'+lab+'</button>').join('');
+  DASH.forEach(([id]) => { $('#'+id).hidden = state.dash!==id; });
 }
 function renderHero(){
   const X = S(), J = X.J, n = X.teams.length;
   const k = (l,val,sub) => '<div class="kpi"><div class="kl">'+l+'</div><div class="kv num">'+val+'</div><div class="ks">'+sub+'</div></div>';
   const r = (key,dir) => rankOf(X.teams,key,dir,J.ab);
-  const mark = '<svg class="mark" viewBox="0 0 132 132" aria-hidden="true"><path class="b" d="M22 18H110V70H22Z"/><path class="m" d="M48 36H84V62H48Z"/><path class="f" d="M40 74H92"/><path class="b" d="M44 76L52 116M58 76L60 116M74 76L72 116M88 76L80 116M46 92H86M48 106H84"/><path class="m" d="M66 70V74"/></svg>';
-  const cur = state.season === D.current && !D.sample;
-  $('#hero').innerHTML = '<div class="hero"><div class="circle"><h1><span>'+esc(state.season)+' regular season'+(cur?', in progress':'')+'</span>Utah Jazz</h1></div>'+mark+'</div><div class="kpis">'
+  const mark = '<svg class="mark" viewBox="0 0 132 132" aria-hidden="true"><path class="b" d="M22 18H110V70H22Z"/><path class="m" d="M48 36H84V62H48Z"/><ellipse class="note" cx="62" cy="55" rx="5.2" ry="3.7" transform="rotate(-22 62 55)"/><path class="note-s" d="M66.6 54V40.5c2.6 3.4 7.4 4.4 6.6 9.6"/><path class="f" d="M40 74H92"/><path class="b" d="M44 76L52 116M58 76L60 116M74 76L72 116M88 76L80 116M46 92H86M48 106H84"/><path class="m" d="M66 70V74"/></svg>';
+  $('#hero').innerHTML = '<div class="hero"><div class="circle"><h1><span>'+esc(state.season)+' regular season</span>Utah Jazz</h1></div>'+mark+'</div><div class="kpis">'
     + k('Record', J.w+'-'+J.l, (J.gp?p3(J.wpct)+' win %, ':'')+ord(r('wpct',1)||n)+' of '+n)
     + k('Net rating', sgn(J.net), rkBadge(r('net',1),n,1)+' Points per 100 possessions, margin')
     + k('Offense', num(J.ortg,1), rkBadge(r('ortg',1),n,1)+' Points scored per 100')
@@ -354,7 +367,7 @@ function strip(teams, k, dir, me, avg){
 }
 function fmtK(k,v,d){ return k==='wpct'||k==='tpar'||k==='ftrB'||k==='oftr' ? p3(v) : (k==='pm' ? sgn(v,d) : k==='net' ? sgn(v,d) : num(v,d)); }
 
-const INS = [['league','Against the league'],['log','Game log'],['ff','Four factors'],['splits','Splits']];
+const INS = [['league','Against the league'],['ff','Four factors'],['splits','Splits']];
 function renderVsLeague(){
   const X = S(), J = X.J, n = X.teams.length;
   let h = '<div class="sh"><h2>Jazz vs. the league</h2><span class="note">'+esc(state.season)+', '+J.gp+' games</span></div>';
@@ -373,8 +386,6 @@ function renderVsLeague(){
       });
     });
     h += '</tbody></table></div>';
-  } else if(state.ins==='log'){
-    h += gameLog(X);
   } else if(state.ins==='ff'){
     h += fourFactors(X);
   } else {
@@ -382,34 +393,49 @@ function renderVsLeague(){
   }
   $('#vsLeague').innerHTML = h;
 }
-function gameLog(X){
-  const G = X.games.filter(g => ok(g.margin));
-  if(!G.length) return '<div class="panel empty">No games played yet.</div>';
-  const W = 760, H = 300, ml = 40, mr = 14, mt = 16, mb = 34;
+function renderOverview(){
+  const X = S(), J = X.J, G = X.games.filter(g => ok(g.margin)), n = X.teams.length;
+  const rec = L => { const w = L.filter(g=>g.res==='W').length; return w+'-'+(L.length-w); };
+  let streak = '–';
+  if(G.length){ const last = G[G.length-1].res; let k = 0; for(let i=G.length-1;i>=0 && G[i].res===last;i--) k++; streak = last+k; }
+  const chip = (v,l) => '<div class="chip"><b class="num">'+v+'</b><span>'+l+'</span></div>';
+  let h = '<div class="sh"><h2>Team Performance</h2><span class="note">'+esc(state.season)+' regular season</span></div>';
+  h += '<div class="rec"><div class="big num">'+J.w+'-'+J.l+'<small>Record, '+ord(rankOf(X.teams,'wpct',1,J.ab)||n)+' of '+n+' in win %</small></div><div class="chips">'
+    + chip(rec(G.filter(g=>g.home)),'Home') + chip(rec(G.filter(g=>!g.home)),'Road') + chip(rec(G.slice(-10)),'Last '+Math.min(10,G.length))
+    + chip(streak,'Streak') + chip(sgn(mean(G.map(g=>g.margin))),'Avg. margin') + '</div></div>';
+  h += '<div class="panel scroll" style="margin-bottom:14px"><div class="pad" style="padding-bottom:4px"><h3 style="font-family:var(--font-d);font-weight:600;font-size:21px;margin:0">Next 10 games</h3></div>'+nextGames(X)+'</div>';
+  h += '<div class="panel card"><h3>Point differential by game</h3><div class="lgd"><span><b style="background:var(--good)"></b>Win</span><span><b style="background:var(--bad)"></b>Loss</span><span>Hover a bar for the score.</span></div>'+marginChart(G)+'</div>';
+  $('#overview').innerHTML = h;
+}
+const fTime = iso => new Date(iso).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/Denver'})+' MT';
+const fDay = iso => new Date(iso).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',timeZone:'America/Denver'});
+function nextGames(X){
+  const U = (D.upcoming||[]).slice(0,10);
+  if(!U.length) return '<div class="empty">No upcoming games in the schedule.</div>';
+  return '<table><thead><tr><th class="l">Date</th><th class="l">Time</th><th class="l">Opponent</th><th data-d="Opponent\'s record this season">Opp. record</th><th class="l">Location</th><th class="l">TV</th></tr></thead><tbody>'
+    + U.map(u => { const t = X.byAb[u.opp];
+      return '<tr><td class="l">'+esc(fDay(u.date))+'</td><td class="l">'+(u.live?'<span class="live">Live now</span>':esc(fTime(u.date)))+'</td>'
+        + '<td class="l"><span class="ha'+(u.home?' h':'')+'">'+(u.home?'vs':'@')+'</span> <span class="team"><span class="dot" style="background:'+esc(t?t.color:'#999')+'"></span>'+esc(u.oppName||u.opp)+'</span></td>'
+        + '<td class="num">'+(t?t.w+'-'+t.l:'–')+'</td><td class="l">'+esc((u.home?'Home':'Away')+(u.venue?', '+u.venue:'')+(u.city?' ('+u.city+')':''))+'</td><td class="l note">'+esc((u.tv||[]).join(', ')||'–')+'</td></tr>'; }).join('')
+    + '</tbody></table>';
+}
+function marginChart(G){
+  if(!G.length) return '<div class="empty">No games played yet.</div>';
+  const few = G.length <= 30, W = 760, H = few ? 330 : 300, ml = 40, mr = 14, mt = 22, mb = few ? 46 : 34;
   const mx = Math.max(10, Math.max.apply(null, G.map(g=>Math.abs(g.margin))));
   const top = Math.ceil(mx/10)*10, bw = (W-ml-mr)/G.length;
   const Y = v => mt + (top - v)/(2*top)*(H-mt-mb);
-  let s = '<svg class="sc" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Point margin by game">';
+  let s = '<svg class="sc" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Point differential by game">';
   for(let v=-top; v<=top; v+=top/2){ s += '<line class="gl" x1="'+ml+'" x2="'+(W-mr)+'" y1="'+Y(v)+'" y2="'+Y(v)+'"/><text x="'+(ml-6)+'" y="'+(Y(v)+4)+'" text-anchor="end">'+(v>0?'+':'')+v+'</text>'; }
   s += '<line class="ax" x1="'+ml+'" x2="'+(W-mr)+'" y1="'+Y(0)+'" y2="'+Y(0)+'"/>';
   G.forEach((g,i) => {
-    const x = ml + i*bw + bw*0.12, w = Math.max(1.5, bw*0.76), y0 = Y(Math.max(0,g.margin)), hgt = Math.abs(Y(g.margin)-Y(0));
-    s += '<g class="rpt" data-n="'+esc(g.d+' '+(g.home?'vs':'@')+' '+g.opp)+'" data-c="'+(g.margin>0?'var(--good)':'var(--bad)')+'" data-l="Result::'+g.res+' '+g.pts+'-'+g.opts+'||Margin::'+sgn(g.margin,0)+'||Game::'+g.n+'"><rect class="hit" x="'+(ml+i*bw)+'" y="'+mt+'" width="'+bw+'" height="'+(H-mt-mb)+'"/><rect class="dotp" x="'+x.toFixed(1)+'" y="'+y0.toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+Math.max(1,hgt).toFixed(1)+'" fill="'+(g.margin>0?'var(--good)':'var(--bad)')+'" opacity=".8" style="stroke-width:0"/></g>';
+    const c = g.margin>0 ? 'var(--good)' : 'var(--bad)', w = Math.max(1.5, Math.min(bw*0.72, 44)), x = ml + i*bw + (bw-w)/2, y0 = Y(Math.max(0,g.margin)), hgt = Math.max(1, Math.abs(Y(g.margin)-Y(0)));
+    s += '<g class="rpt" data-n="'+esc(fDay(g.d+'T18:00:00Z')+' '+(g.home?'vs':'@')+' '+g.opp)+'" data-c="'+c+'" data-l="Result::'+g.res+' '+g.pts+'-'+g.opts+'||Point differential::'+sgn(g.margin,0)+'||Game::'+g.n+'"><rect class="hit" x="'+(ml+i*bw)+'" y="'+mt+'" width="'+bw+'" height="'+(H-mt-mb)+'"/><rect class="dotp" x="'+x.toFixed(1)+'" y="'+y0.toFixed(1)+'" width="'+w.toFixed(1)+'" height="'+hgt.toFixed(1)+'" fill="'+c+'" opacity=".85" style="stroke-width:0"/></g>';
+    if(few) s += '<text class="lab" x="'+(x+w/2).toFixed(1)+'" y="'+(g.margin>0 ? y0-5 : y0+hgt+13).toFixed(1)+'" text-anchor="middle" style="fill:'+c+'">'+sgn(g.margin,0)+'</text>';
   });
-  const win = Math.min(10, Math.max(3, Math.round(G.length/6)));
-  if(G.length >= win){
-    let pts = []; for(let i=win-1;i<G.length;i++){ const m = mean(G.slice(i-win+1,i+1).map(g=>g.margin)); pts.push((ml+i*bw+bw/2).toFixed(1)+','+Y(m).toFixed(1)); }
-    s += '<polyline class="ln" points="'+pts.join(' ')+'" stroke="var(--jazz)"/>';
-  }
-  const step = Math.max(1, Math.round(G.length/10));
-  G.forEach((g,i) => { if(i%step===0) s += '<text x="'+(ml+i*bw+bw/2)+'" y="'+(H-mb+16)+'" text-anchor="middle">'+g.n+'</text>'; });
-  s += '<text x="'+((W)/2)+'" y="'+(H-4)+'" text-anchor="middle">Game number</text></svg>';
-  const last = G.slice(-10).reverse();
-  let t = '<table><thead><tr><th class="l">Date</th><th class="l">Opponent</th><th>Result</th><th>Score</th><th>Margin</th></tr></thead><tbody>'
-    + last.map(g => '<tr><td class="l">'+esc(g.d)+'</td><td class="l">'+(g.home?'vs':'@')+' '+esc(g.opp)+'</td><td class="'+g.res+'">'+g.res+'</td><td class="num">'+g.pts+'-'+g.opts+'</td><td class="num">'+sgn(g.margin,0)+'</td></tr>').join('')+'</tbody></table>';
-  const L10 = G.slice(-10), w10 = L10.filter(g=>g.res==='W').length;
-  return '<div class="g2"><div class="panel card" style="grid-column:1/-1"><h3>Point margin, game by game</h3><div class="lgd"><span><b style="background:var(--good)"></b>Win</span><span><b style="background:var(--bad)"></b>Loss</span><span><b style="background:var(--jazz);height:3px;vertical-align:3px"></b>'+win+'-game rolling average</span></div>'+s+'</div>'
-    + '<div class="panel scroll" style="grid-column:1/-1"><div class="pad" style="padding-bottom:4px"><h3 style="font-family:var(--font-d);font-weight:600;font-size:21px;margin:0">Last '+L10.length+' games: '+w10+'-'+(L10.length-w10)+'</h3></div>'+t+'</div></div>';
+  if(few) G.forEach((g,i) => { const cx = ml+i*bw+bw/2; s += '<text x="'+cx.toFixed(1)+'" y="'+(H-mb+16)+'" text-anchor="middle">'+(g.home?'':'@')+esc(g.opp)+'</text><text x="'+cx.toFixed(1)+'" y="'+(H-mb+30)+'" text-anchor="middle" style="font-size:10px">'+esc(g.d.slice(5).replace('-','/'))+'</text>'; });
+  else { const step = Math.max(1, Math.round(G.length/12)); G.forEach((g,i) => { if(i%step===0) s += '<text x="'+(ml+i*bw+bw/2)+'" y="'+(H-mb+16)+'" text-anchor="middle">'+g.n+'</text>'; }); s += '<text x="'+(W/2)+'" y="'+(H-4)+'" text-anchor="middle">Game number</text>'; }
+  return s + '</svg>';
 }
 function fourFactors(X){
   const J = X.J, avg = k => mean(X.teams.map(t=>t[k])), n = X.teams.length;
@@ -801,13 +827,13 @@ document.addEventListener('pointerout', e => { const g = e.target.closest && e.t
 addEventListener('scroll', hideTip, {passive:true});
 
 /* ---------- wiring ---------- */
-function renderAll(){ renderTabs(); renderHero(); renderVsLeague(); renderLeagueTable(); renderPlayers(); renderLineups(); renderOnOff(); renderShots(); renderModels(); renderH2H(); }
+function renderAll(){ renderTabs(); renderHero(); renderOverview(); renderVsLeague(); renderLeagueTable(); renderPlayers(); renderLineups(); renderOnOff(); renderShots(); renderModels(); renderH2H(); }
 const RENDER = {lt:renderLeagueTable, pl:renderPlayers, lu:renderLineups};
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-season],[data-ins],[data-lt],[data-pm],[data-lu],[data-lumin],[data-sc],[data-mdl],[data-ts]');
+  const t = e.target.closest('[data-dash],[data-ins],[data-lt],[data-pm],[data-lu],[data-lumin],[data-sc],[data-mdl],[data-ts]');
   if(!t) return;
   const d = t.dataset;
-  if(d.season){ state.season = d.season; state.luMin = null; state.scP = 'ALL'; state.pA = state.pB = null; renderAll(); }
+  if(d.dash){ state.dash = d.dash; hideTip(); renderTabs(); history.replaceState(null,'','#'+d.dash); const tb = $('#tabs'); if(tb.getBoundingClientRect().top < 0 || scrollY > tb.offsetTop) scrollTo({top: tb.offsetTop, behavior:'instant'}); }
   else if(d.ins){ state.ins = d.ins; renderVsLeague(); }
   else if(d.lt){ state.lt = d.lt; renderLeagueTable(); }
   else if(d.pm){ state.pm = d.pm; renderPlayers(); }
