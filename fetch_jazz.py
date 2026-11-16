@@ -40,7 +40,8 @@ COLORS = {
     "NOP": "#0c2340", "NYK": "#f58426", "OKC": "#007ac1", "ORL": "#0077c0", "PHI": "#006bb6", "PHX": "#e56020",
     "POR": "#e03a3e", "SAC": "#5a2d81", "SAS": "#8a8d8f", "TOR": "#ce1141", "UTA": "#4b2a85", "WAS": "#002b5c",
 }
-CACHE_VERSION = 3
+CACHE_VERSION = 4
+STINT_FIELDS = ["fga", "fta", "oreb", "tov", "fgm", "fg3a", "fg3m", "ftm", "dreb", "ast", "stl", "blk"]
 TOV_TYPES = ("urnover", "Traveling", "Double Dribble", "Discontinued Dribble", "3-Second")
 ESPN_KEYS = {"minutes": "min", "points": "pts", "fieldGoalsMade-fieldGoalsAttempted": "fg",
              "threePointFieldGoalsMade-threePointFieldGoalsAttempted": "fg3", "freeThrowsMade-freeThrowsAttempted": "ft",
@@ -195,6 +196,9 @@ def extract_game(s):
                          i0(v.get("oreb")), i0(v.get("dreb")), i0(v.get("pf")), i0(v.get("pm"))])
         g["players"][a] = rows
 
+    shot_stint = {}
+    if JAZZ in (home, away):
+        g["stints"], shot_stint = jazz_stints(plays, g, tid)
     for p in plays:
         if not p.get("shootingPlay") or p.get("pointsAttempted") not in (2, 3):
             continue
@@ -210,23 +214,24 @@ def extract_game(s):
         dist = float(m.group(1)) if m else math.hypot(dx, dy)
         three = 1 if p.get("pointsAttempted") == 3 else 0
         zb, za, zr = zone(dx, dy, three, dist)
-        g["shots"].append([team, shooter, round(dx * 10), round(dy * 10), 1 if p.get("scoringPlay") else 0, three, zb, za, zr])
+        g["shots"].append([team, shooter, round(dx * 10), round(dy * 10), 1 if p.get("scoringPlay") else 0, three, zb, za, zr,
+                           shot_stint.get(str(p.get("sequenceNumber")), -1)])
 
-    if JAZZ in (home, away):
-        g["stints"] = jazz_stints(plays, g, tid)
     return g
 
 
 def jazz_stints(plays, g, tid):
     """Follow the five Jazz players on the floor through the play-by-play.
-    Returns [[five ids], seconds, jazz pts, opp pts, [jazz FGA, FTA, OREB, TOV], [opp FGA, FTA, OREB, TOV]]."""
+    Returns (stints, shot_stint): stints are [[five ids], seconds, jazz pts, opp pts, jazz stats, opp stats] with stats =
+    [FGA, FTA, OREB, TOV, FGM, FG3A, FG3M, FTM, DREB, AST, STL, BLK]; shot_stint maps a Jazz shot's sequence number to its stint."""
     jz_ids = {r[0] for r in g["players"].get(JAZZ, [])}
     starters = [r[0] for r in g["players"].get(JAZZ, []) if r[4]]
     jazz_home = g["home"] == JAZZ
     by_period = {}
     for p in plays:
         by_period.setdefault(p["period"]["number"], []).append(p)
-    out, on_end, last = [], set(starters), [0, 0]
+    out, on_end, last, shot_stint = [], set(starters), [0, 0], {}
+    Z = lambda: [0] * len(STINT_FIELDS)
     for per in sorted(by_period):
         evs = by_period[per]
         if per == 1 and len(starters) == 5:
@@ -248,12 +253,12 @@ def jazz_stints(plays, g, tid):
                     on.append(pid)
             on = set(on[:5])
         t_prev = 720 if per <= 4 else 300
-        cur = dict(sec=0.0, jp=0, op=0, jposs=[0, 0, 0, 0], oposs=[0, 0, 0, 0])
+        cur = dict(sec=0.0, jp=0, op=0, jposs=Z(), oposs=Z(), used=False)
 
         def flush():
-            if cur["sec"] > 0 or cur["jp"] or cur["op"]:
+            if cur["sec"] > 0 or cur["jp"] or cur["op"] or cur["used"]:
                 out.append([sorted(on), round(cur["sec"], 1), cur["jp"], cur["op"], cur["jposs"][:], cur["oposs"][:]])
-            cur.update(sec=0.0, jp=0, op=0, jposs=[0, 0, 0, 0], oposs=[0, 0, 0, 0])
+            cur.update(sec=0.0, jp=0, op=0, jposs=Z(), oposs=Z(), used=False)
 
         for p in evs:
             t = clock_sec(p["clock"].get("displayValue"))
@@ -268,15 +273,33 @@ def jazz_stints(plays, g, tid):
             team = tid.get((p.get("team") or {}).get("id"))
             typ = p["type"].get("text", "")
             side = cur["jposs"] if team == JAZZ else cur["oposs"] if team else None
+            other = cur["oposs"] if team == JAZZ else cur["jposs"] if team else None
+            text = (p.get("text") or "").lower()
+            nparts = len(p.get("participants") or [])
             if side is not None:
-                if p.get("shootingPlay") and p.get("pointsAttempted") in (2, 3):
+                pa, made = p.get("pointsAttempted"), bool(p.get("scoringPlay"))
+                if p.get("shootingPlay") and pa in (2, 3):
                     side[0] += 1
-                elif p.get("shootingPlay") and p.get("pointsAttempted") == 1:
+                    if pa == 3: side[5] += 1
+                    if made:
+                        side[4] += 1
+                        if pa == 3: side[6] += 1
+                        if nparts >= 2: side[9] += 1          # assisted basket
+                    elif "block" in text:
+                        other[11] += 1
+                    if team == JAZZ:
+                        shot_stint[str(p.get("sequenceNumber"))] = len(out)
+                        cur["used"] = True
+                elif p.get("shootingPlay") and pa == 1:
                     side[1] += 1
+                    if made: side[7] += 1
                 elif typ == "Offensive Rebound":
-                    side[2] += 1
+                    side[2] += 1 if nparts else 0           # team rebounds have no player; the box score leaves them out
+                elif typ == "Defensive Rebound":
+                    side[8] += 1 if nparts else 0
                 elif any(k in typ for k in TOV_TYPES):
                     side[3] += 1
+                    if "steal" in text: other[10] += 1
             if typ == "Substitution" and team == JAZZ:
                 ids = [(x.get("athlete") or {}).get("id") for x in (p.get("participants") or [])]
                 if len(ids) >= 2 and ids[0] and ids[1]:
@@ -286,7 +309,7 @@ def jazz_stints(plays, g, tid):
         cur["sec"] += max(0.0, t_prev)
         flush()
         on_end = set(on)
-    return out
+    return out, shot_stint
 
 
 # ---------------------------------------------------------------- collecting a season
@@ -394,10 +417,12 @@ def build_season(season, recs, roster_info, log):
             home = g["home"] == JAZZ
             games.append(dict(id=g["id"], d=g["d"], opp=g["away"] if home else g["home"], home=home,
                               pts=g["hs"] if home else g["as_"], opts=g["as_"] if home else g["hs"]))
+            k0 = len(stints)
             stints += [s + [g["id"]] for s in g.get("stints", [])]
             boxes[g["id"]] = [[r[0], r[5], r[6], r[7], r[8], r[9], r[10], r[11], r[12], r[13], r[14], r[15], r[16], r[17], r[20], r[21]]
                               for r in g["players"].get(JAZZ, [])]
-        shots_all += [s + [g["d"]] for s in g["shots"]]
+        base = k0 if JAZZ in (g["home"], g["away"]) else 0
+        shots_all += [s[:9] + [base + s[9] if (s[0] == JAZZ and len(s) > 9 and s[9] >= 0) else -1, g["d"]] for s in g["shots"]]
 
     teams = []
     for a, A in T.items():
@@ -488,19 +513,22 @@ def build_season(season, recs, roster_info, log):
         onoff.append(dict(id=pid, onMin=round(sec / 60, 1), onO=round(on_o, 1), onD=round(on_d, 1), onNet=round(on_o - on_d, 1),
                           offMin=round(fsec / 60, 1), offO=r1(off_o), offD=r1(off_d), offNet=r1(off_o - off_d) if off_o is not None else None))
 
+    pids = sorted({p for st in stints for p in st[0]})
+    pix = {p: i for i, p in enumerate(pids)}
     zb, za, zr, rows, zavg = [], [], [], [], {}
     ix = lambda L, v: L.index(v) if v in L else (L.append(v) or len(L) - 1)
-    for team, pid, x, y, made, three, b, a, r, d in shots_all:
+    for team, pid, x, y, made, three, b, a, r, k, d in shots_all:
         z = zavg.setdefault((b, a, r), [0, 0]); z[0] += 1; z[1] += made
         if team == JAZZ:
-            rows.append([pid, x, y, made, ix(zb, b), ix(za, a), ix(zr, r), three, d.replace("-", "")])
+            rows.append([pid, x, y, made, ix(zb, b), ix(za, a), ix(zr, r), three, d.replace("-", ""), k])
     lavg = [dict(zb=k[0], za=k[1], zr=k[2], fga=v[0], fgm=v[1]) for k, v in zavg.items()]
     log("  %s: %d Jazz shots, %d league shots" % (season, len(rows), len(shots_all)))
 
     return dict(label=season, teams=teams, games=games, players=league, jazz=jz,
                 names={p["id"]: p["name"] for p in jz}, roster={p["id"]: dict(pos=p.get("pos", ""), num=p.get("num", "")) for p in jz},
                 lineups={"5": lineup_rows(L5), "2": lineup_rows(L2)}, onoff=onoff, boxes=boxes,
-                shots=dict(cols=["p", "x", "y", "m", "zb", "za", "zr", "three", "d"], zb=zb, za=za, zr=zr, rows=rows), zoneAvg=lavg)
+                stintFields=STINT_FIELDS, pids=pids, stints=[[gid, [pix[p] for p in five], sec, jp, op, js, os] for five, sec, jp, op, js, os, gid in stints],
+                shots=dict(cols=["p", "x", "y", "m", "zb", "za", "zr", "three", "d", "k"], zb=zb, za=za, zr=zr, rows=rows), zoneAvg=lavg)
 
 
 def jazz_schedule(fetch, log):

@@ -71,7 +71,7 @@ section[hidden]{display:none}
 @media (max-width:900px){.pp{grid-template-columns:1fr}}
 .ppside .ppc:first-child{background:color-mix(in srgb,var(--jazz) 7%,var(--panel))}
 .ppsel{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}
-.ppsel label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);flex:1 1 240px;max-width:380px}
+.ppsel label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);flex:1 1 200px;max-width:380px}
 .ppsel select{flex:none;width:100%;font-size:15px;text-transform:none;letter-spacing:0;font-weight:500}
 .zcourt{width:100%;height:auto;display:block}
 .zcourt .zl{stroke:#6b4a2f;stroke-width:1.2;stroke-dasharray:5 4;fill:none;opacity:.55}
@@ -508,7 +508,7 @@ const ZLAB = {'paint':[10.5,0],'mid-range top':[23,0],'mid-range right':[9.5,15]
 const ZORDER = ['paint','mid-range top','mid-range right','mid-range left','right elbow','left elbow','right corner 3','left corner 3','right wing 3','left wing 3','top of key 3'];
 const ZCOL = [[20,'#d9664f','0–20%'],[40,'#e38a3d','21–40%'],[60,'#e2b84a','41–60%'],[80,'#a9c95a','61–80%'],[101,'#72b86b','81–100%']];
 const zColor = (m,a) => { if(!a) return '#ece2cc'; const p = 100*m/a; return ZCOL.find(c => p <= c[0])[1]; };
-function zoneCourt(Z){
+function zoneCourt(Z, overlay){
   const S = 14, W = 47*S, H = 50*S, LW = 0, P = ([b,dx]) => (b*S).toFixed(1)+','+((25-dx)*S).toFixed(1);
   const shapes = zoneShapes();
   let s = '<svg class="zcourt" viewBox="-4 -4 '+(W+LW+8)+' '+(H+8)+'" role="img" aria-label="Shooting by zone">';
@@ -533,8 +533,12 @@ function zoneCourt(Z){
     }
     s += '<g pointer-events="none"><rect class="pill'+(three?'':' two')+'" x="'+(x-w/2).toFixed(1)+'" y="'+(y-30)+'" width="'+w.toFixed(1)+'" height="19" rx="4"/><text class="zn" x="'+x+'" y="'+(y-16.5)+'" text-anchor="middle">'+esc(z)+'</text>'
       + '<text class="zv" x="'+x+'" y="'+(y+6)+'" text-anchor="middle">'+(v.a?v.m+'/'+v.a:'-/-')+'</text><text class="zv" x="'+x+'" y="'+(y+25)+'" text-anchor="middle">'+(v.a?num(100*v.m/v.a,0)+'%':'--%')+'</text></g>'; });
+  if(overlay) s += '<rect x="0" y="0" width="'+W+'" height="'+H+'" fill="#3a3550" fill-opacity=".25"/><rect x="'+(W/2-230)+'" y="'+(H/2-34)+'" width="460" height="68" rx="10" fill="#fff" fill-opacity=".92"/><text x="'+(W/2)+'" y="'+(H/2+9)+'" text-anchor="middle" style="font-family:var(--font-d);font-weight:700;font-size:26px;fill:#3a3550">'+esc(overlay)+'</text>';
   return s + '</svg>';
 }
+const lastFirst = n => { const parts = String(n).trim().split(/\s+/), sfx = /^(jr\.?|sr\.?|ii|iii|iv|v)$/i; let i = parts.length-1; if(i > 0 && sfx.test(parts[i])) i--; return i > 0 ? {last: parts.slice(i).join(' '), first: parts.slice(0,i).join(' ')} : {last: n, first: ''}; };
+const byLast = (a,b) => { const x = lastFirst(a.name), y = lastFirst(b.name); return x.last.localeCompare(y.last) || x.first.localeCompare(y.first); };
+const lfName = p => { const n = lastFirst(p.name); return n.last+(n.first?', '+n.first:'')+(p.num?' #'+p.num:''); };
 function renderPlayerPerf(){
   const X = S(), raw = X.raw, boxes = raw.boxes || {};
   let h = '<div class="sh"><h2>Player Performance</h2></div>';
@@ -555,8 +559,7 @@ function renderPlayerPerf(){
   const Z = {}; raw.shots.rows.forEach(r => { if(String(r[0])!==String(P.id) || !dates.has(String(r[8]))) return;
     const z = zoneOf({x:r[1], y:r[2], v:r[7]?3:2}); const q = Z[z] || (Z[z] = {m:0,a:0}); q.a++; q.m += r[3]; });
   const pct = (m,a) => a ? Math.round(100*m/a)+'%' : '0%';
-  const lastFirst = n => { const parts = String(n).trim().split(/\s+/), sfx = /^(jr\.?|sr\.?|ii|iii|iv|v)$/i; let i = parts.length-1; if(i > 0 && sfx.test(parts[i])) i--; return i > 0 ? {last: parts.slice(i).join(' '), first: parts.slice(0,i).join(' ')} : {last: n, first: ''}; };
-  const optP = players.slice().sort((a,b) => { const x = lastFirst(a.name), y = lastFirst(b.name); return x.last.localeCompare(y.last) || x.first.localeCompare(y.first); })
+  const optP = players.slice().sort(byLast)
     .map(p => { const n = lastFirst(p.name); return '<option value="'+esc(p.id)+'"'+(String(p.id)===String(P.id)?' selected':'')+'>'+esc(n.last+(n.first?', '+n.first:''))+(p.num?' #'+esc(p.num):'')+'</option>'; }).join('');
   const optG = '<option value="ALL"'+(state.ppGame==='ALL'?' selected':'')+'>All games ('+played.length+')</option>' + played.map(g => '<option value="'+esc(g.id)+'"'+(g.id===state.ppGame?' selected':'')+'>'+esc(fDay(g.d+'T18:00:00Z'))+'  '+(g.home?'vs ':'@ ')+esc(g.opp)+'  '+g.res+' '+g.pts+'-'+g.opts+'</option>').join('');
   h += '<div class="ppsel"><label>Player<select data-sel="ppPlayer">'+optP+'</select></label><label>Game<select data-sel="ppGame">'+optG+'</select></label></div>';
@@ -650,8 +653,70 @@ function cell(c, r, id){
 }
 
 /* ---------- lineup performance (new dashboard, to be built) ---------- */
+/* ---------- lineup performance: zone shot chart for any three Jazz players on the floor together ---------- */
 function renderLineupPerf(){
-  $('#lineupPerf').innerHTML = '<div class="sh"><h2>Lineup Performance</h2></div>';
+  const X = S(), raw = X.raw;
+  let h = '<div class="sh"><h2>Lineup Performance</h2></div>';
+  if(!raw.stints || !raw.pids){ $('#lineupPerf').innerHTML = h + '<div class="panel empty">Lineup shot data arrives with the next refresh.</div>'; return; }
+  const pix = {}; raw.pids.forEach((p,i) => pix[String(p)] = i);
+  const players = X.jazz.filter(p => (p.min||0) > 0 && pix[String(p.id)] != null).sort(byLast);
+  const st = raw.stints;  // [game id, [player idx x5], seconds, jazz pts, opp pts, jazz stats, opp stats]
+  const F = {}; (raw.stintFields||[]).forEach((f,i) => F[f] = i);
+  // default: the three Jazz players who have shared the floor the longest
+  if(!state.lp){
+    const tri = {};
+    st.forEach(r => { const f = r[1].slice().sort((a,b)=>a-b);
+      for(let a=0;a<f.length;a++) for(let b=a+1;b<f.length;b++) for(let c=b+1;c<f.length;c++){ const k = f[a]+','+f[b]+','+f[c]; tri[k] = (tri[k]||0) + r[2]; } });
+    const best = Object.keys(tri).sort((a,b) => tri[b]-tri[a])[0];
+    state.lp = best ? best.split(',').map(i => String(raw.pids[+i])) : players.slice(0,3).map(p => String(p.id));
+    state.lpGame = 'ALL';
+  }
+  const sel = state.lp.map(id => pix[String(id)]).filter(i => i != null);
+  const distinct = new Set(state.lp.map(String)).size === 3 && sel.length === 3;
+  const together = r => sel.every(i => r[1].includes(i));
+  const gamesTogether = new Set(distinct ? st.filter(together).map(r => r[0]) : []);
+  const ks = new Set();
+  st.forEach((r,i) => { if(distinct && together(r) && (state.lpGame==='ALL' || r[0]===state.lpGame)) ks.add(i); });
+  const match = [...ks].map(i => st[i]);
+  const Z = {};
+  raw.shots.rows.forEach(r => { if(r[9]==null || r[9] < 0 || !ks.has(r[9])) return;
+    const z = zoneOf({x:r[1], y:r[2], v:r[7]?3:2}); const q = Z[z] || (Z[z] = {m:0,a:0}); q.a++; q.m += r[3]; });
+  const T = {sec:0, jp:0, op:0, j:new Array(12).fill(0), o:new Array(12).fill(0)};
+  match.forEach(r => { T.sec += r[2]; T.jp += r[3]; T.op += r[4]; r[5].forEach((v,i) => T.j[i] += v); r[6].forEach((v,i) => T.o[i] += v); });
+  const g = k => T.j[F[k]] || 0, og = k => T.o[F[k]] || 0;
+  const poss = 0.5*((g('fga') + 0.44*g('fta') - g('oreb') + g('tov')) + (og('fga') + 0.44*og('fta') - og('oreb') + og('tov')));
+  const noData = !distinct ? 'Pick three different players' : (!match.length || T.sec < 1) ? 'No data on selected lineup' : '';
+
+  // filters
+  const opt = k => players.map(p => '<option value="'+esc(p.id)+'"'+(String(p.id)===String(state.lp[k])?' selected':'')+'>'+esc(lfName(p))+'</option>').join('');
+  const gopts = '<option value="ALL"'+(state.lpGame==='ALL'?' selected':'')+'>All games ('+gamesTogether.size+' together)</option>'
+    + X.games.slice().reverse().map(gm => '<option value="'+esc(gm.id)+'"'+(gm.id===state.lpGame?' selected':'')+'>'+esc(fDay(gm.d+'T18:00:00Z'))+'  '+(gm.home?'vs ':'@ ')+esc(gm.opp)+'  '+gm.res+' '+gm.pts+'-'+gm.opts+(gamesTogether.has(gm.id)?'':'  (not together)')+'</option>').join('');
+  h += '<div class="ppsel">'+[0,1,2].map(k => '<label>Player '+(k+1)+'<select data-sel="lp'+k+'">'+opt(k)+'</select></label>').join('')
+    + '<label>Game<select data-sel="lpGame">'+gopts+'</select></label></div>';
+
+  // side panel
+  const byId = {}; players.forEach(p => byId[String(p.id)] = p);
+  const names = state.lp.map(id => byId[String(id)] ? byId[String(id)].name : '?');
+  const one = state.lpGame!=='ALL' ? X.games.find(gm => gm.id===state.lpGame) : null;
+  const mins = T.sec/60, ortg = poss>0 ? 100*T.jp/poss : null, drtg = poss>0 ? 100*T.op/poss : null;
+  const meta = (one ? 'UTA '+(one.home?'vs':'@')+' '+esc(one.opp)+', '+esc(new Date(one.d+'T18:00:00Z').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',timeZone:'America/Denver'})) : esc(state.season)+' season')
+    + '<br>Together: '+num(mins,1)+' min'+(one?'':' in '+new Set(match.map(r=>r[0])).size+' games')
+    + (ok(ortg) && !noData ? '<br>Net rating <span class="'+(ortg-drtg>0?'W':'L')+'">'+sgn(ortg-drtg)+'</span> ('+num(ortg,1)+' off / '+num(drtg,1)+' def)' : '');
+  const pct = (m,a) => a ? Math.round(100*m/a)+'%' : '0%';
+  const fgm = g('fgm'), fga = g('fga'), m3 = g('fg3m'), a3 = g('fg3a'), ftm = g('ftm'), fta = g('fta'), pm = T.jp - T.op;
+  const zrows = Object.keys(Z).sort((a,b) => Z[b].a - Z[a].a || Z[b].m - Z[a].m);
+  const side = '<div class="ppc"><div class="ppname" style="font-size:26px;line-height:1.08">'+names.map(esc).join('<br>')+'</div><div class="ppmeta">'+meta+'</div></div>'
+    + '<div class="ppc"><div class="cap">Field goals, all Jazz shots while together</div>'
+    + '<div class="ppr">Total pts<b class="pts">'+T.jp+'</b></div>'
+    + '<div class="ppr">Total FG<b>'+fgm+'/'+fga+'<small>'+pct(fgm,fga)+'</small></b></div>'
+    + '<div class="ppr">2-pointers<b>'+(fgm-m3)+'/'+(fga-a3)+'<small>'+pct(fgm-m3,fga-a3)+'</small></b></div>'
+    + '<div class="ppr">3-pointers<b>'+m3+'/'+a3+'<small>'+pct(m3,a3)+'</small></b></div>'
+    + '<div class="ppr">Free throws<b>'+ftm+'/'+fta+'<small>'+pct(ftm,fta)+'</small></b></div>'
+    + '<div class="ppmini"><span>Reb<b>'+(g('oreb')+g('dreb'))+'</b></span><span>Ast<b>'+g('ast')+'</b></span><span>Stl<b>'+g('stl')+'</b></span><span>Blk<b>'+g('blk')+'</b></span><span>+/-<b class="'+(pm>0?'W':pm<0?'L':'')+'">'+sgn(pm,0)+'</b></span></div></div>'
+    + '<div class="ppc"><div class="cap">Zone breakdown</div>'
+    + (zrows.length ? zrows.map(z => '<div class="ppr">'+esc(z)+'<b>'+Z[z].m+'/'+Z[z].a+'<small>'+pct(Z[z].m,Z[z].a)+'</small></b></div>').join('') : '<div class="note" style="padding:10px 0">No shots.</div>') + '</div>';
+  h += '<div class="panel pp"><div class="ppcourt">'+zoneCourt(noData ? {} : Z, noData)+'</div><div class="ppside">'+side+'</div></div>';
+  $('#lineupPerf').innerHTML = h;
 }
 
 /* ---------- lineups ---------- */
@@ -930,6 +995,8 @@ document.addEventListener('change', e => {
   if(k==='scP'){ state.scP = s.value; renderShots(); }
   else if(k==='ppPlayer'){ state.ppPlayer = s.value; state.ppGame = null; renderPlayerPerf(); }
   else if(k==='ppGame'){ state.ppGame = s.value; renderPlayerPerf(); }
+  else if(/^lp[012]$/.test(k)){ state.lp[+k[2]] = s.value; renderLineupPerf(); }
+  else if(k==='lpGame'){ state.lpGame = s.value; renderLineupPerf(); }
 });
 
 const fTS = s => new Date(s).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
