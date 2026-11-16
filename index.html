@@ -602,7 +602,9 @@ function renderPlayerPerf(){
   const Z = {}; raw.shots.rows.forEach(r => { if(String(r[0])!==String(P.id) || !dates.has(String(r[8]))) return;
     const z = zoneOf({x:r[1], y:r[2], v:r[7]?3:2}); const q = Z[z] || (Z[z] = {m:0,a:0}); q.a++; q.m += r[3]; });
   const pct = (m,a) => a ? Math.round(100*m/a)+'%' : '0%';
-  const optP = players.map(p => '<option value="'+esc(p.id)+'"'+(String(p.id)===String(P.id)?' selected':'')+'>'+esc(p.name)+(p.num?' (#'+esc(p.num)+')':'')+'</option>').join('');
+  const lastFirst = n => { const parts = String(n).trim().split(/\s+/), sfx = /^(jr\.?|sr\.?|ii|iii|iv|v)$/i; let i = parts.length-1; if(i > 0 && sfx.test(parts[i])) i--; return i > 0 ? {last: parts.slice(i).join(' '), first: parts.slice(0,i).join(' ')} : {last: n, first: ''}; };
+  const optP = players.slice().sort((a,b) => { const x = lastFirst(a.name), y = lastFirst(b.name); return x.last.localeCompare(y.last) || x.first.localeCompare(y.first); })
+    .map(p => { const n = lastFirst(p.name); return '<option value="'+esc(p.id)+'"'+(String(p.id)===String(P.id)?' selected':'')+'>'+esc(n.last+(n.first?', '+n.first:''))+(p.num?' #'+esc(p.num):'')+'</option>'; }).join('');
   const optG = '<option value="ALL"'+(state.ppGame==='ALL'?' selected':'')+'>All games ('+played.length+')</option>' + played.map(g => '<option value="'+esc(g.id)+'"'+(g.id===state.ppGame?' selected':'')+'>'+esc(fDay(g.d+'T18:00:00Z'))+'  '+(g.home?'vs ':'@ ')+esc(g.opp)+'  '+g.res+' '+g.pts+'-'+g.opts+'</option>').join('');
   h += '<div class="ppsel"><label>Player<select data-sel="ppPlayer">'+optP+'</select></label><label>Game<select data-sel="ppGame">'+optG+'</select></label></div>';
   const one = state.ppGame!=='ALL' ? games[0] : null;
