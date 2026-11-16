@@ -43,7 +43,7 @@ button:focus-visible,select:focus-visible{outline:2px solid var(--div);outline-o
 /* tabs */
 .tabs{display:flex;flex-wrap:wrap;row-gap:2px;border-bottom:3px solid var(--jazz);position:sticky;top:0;z-index:5;background:var(--bg);margin-top:26px}
 @media (max-width:820px){.tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}}
-section,#ovSched{scroll-margin-top:120px}
+section,#ovSched,#lpFilters{scroll-margin-top:120px}
 section[hidden]{display:none}
 .rec{display:flex;align-items:flex-end;gap:28px;flex-wrap:wrap;margin:4px 0 18px}
 .rec .big{font-family:var(--font-d);font-weight:700;font-size:64px;line-height:.9}
@@ -351,7 +351,7 @@ const DASH_IDS = ['overview','playerPerf','lineupPerf','lineups','onoff','shots'
 const state = {
   season: D.current || D.order[0], dash: (DASH_IDS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview'), ins:'league', lt:'adv', pm:'pg', lu:'5', luMin:null,
   scP:'ALL', scMode:'hex', mdl:'pyth', schedAll:false, trAll:false, ppPlayer:null, ppGame:null, pA:null, pB:null,
-  sort:{ ro:{k:'ppg',d:-1}, lu:{k:'min',d:-1}, tr:{k:'net',d:-1} }
+  sort:{ ro:{k:'ppg',d:-1}, lu:{k:'min',d:-1}, tr:{k:'min',d:-1} }
 };
 
 /* ---------- per-season model (memoized) ---------- */
@@ -693,7 +693,8 @@ function renderLineupPerf(){
   const opt = k => players.map(p => '<option value="'+esc(p.id)+'"'+(String(p.id)===String(state.lp[k])?' selected':'')+'>'+esc(lfName(p))+'</option>').join('');
   const gopts = '<option value="ALL"'+(state.lpGame==='ALL'?' selected':'')+'>All games ('+gamesTogether.size+' together)</option>'
     + X.games.slice().reverse().map(gm => '<option value="'+esc(gm.id)+'"'+(gm.id===state.lpGame?' selected':'')+'>'+esc(fDay(gm.d+'T18:00:00Z'))+'  '+(gm.home?'vs ':'@ ')+esc(gm.opp)+'  '+gm.res+' '+gm.pts+'-'+gm.opts+(gamesTogether.has(gm.id)?'':'  (not together)')+'</option>').join('');
-  h += '<div class="ppsel">'+[0,1,2].map(k => '<label>Player '+(k+1)+'<select data-sel="lp'+k+'">'+opt(k)+'</select></label>').join('')
+  h += '<div id="lpTable" style="margin-bottom:18px"></div>';
+  h += '<div class="ppsel" id="lpFilters">'+[0,1,2].map(k => '<label>Player '+(k+1)+'<select data-sel="lp'+k+'">'+opt(k)+'</select></label>').join('')
     + '<label>Game<select data-sel="lpGame">'+gopts+'</select></label></div>';
 
   // side panel
@@ -718,7 +719,6 @@ function renderLineupPerf(){
     + '<div class="ppc"><div class="cap">Zone breakdown</div>'
     + (zrows.length ? zrows.map(z => '<div class="ppr">'+esc(z)+'<b>'+Z[z].m+'/'+Z[z].a+'<small>'+pct(Z[z].m,Z[z].a)+'</small></b></div>').join('') : '<div class="note" style="padding:10px 0">No shots.</div>') + '</div>';
   h += '<div class="panel pp"><div class="ppcourt">'+zoneCourt(noData ? {} : Z, noData)+'</div><div class="ppside">'+side+'</div></div>';
-  h += '<div id="lpTable"></div>';
   $('#lineupPerf').innerHTML = h;
   renderTrioTable();
 }
@@ -759,7 +759,7 @@ function renderTrioTable(){
   const X = S(), minMin = state.lpGame==='ALL' ? Math.max(10, Math.round(X.J.gp*1.5)) : 3;
   const all = trioRows().filter(r => r.min >= minMin);
   const rows = sortRows(all, 'tr', TRC), shown = state.trAll ? rows : rows.slice(0,15), cur = state.lp ? state.lp.map(String).slice().sort().join(',') : '';
-  el.innerHTML = '<div class="panel scroll" style="margin-top:14px"><div class="pad" style="padding-bottom:4px"><h3 style="font-family:var(--font-d);font-weight:600;font-size:21px;margin:0">Top 3-man lineups</h3><div class="note">'+minMin+'+ minutes together. Click a row to chart it.</div></div>'
+  el.innerHTML = '<div class="panel scroll"><div class="pad" style="padding-bottom:4px"><h3 style="font-family:var(--font-d);font-weight:600;font-size:21px;margin:0">Top 3-man lineups</h3><div class="note">'+minMin+'+ minutes together. Click a row to chart it.</div></div>'
     + (rows.length ? '<table>'+thead('tr', TRC, '<th class="rk">#</th>')+'<tbody>'
       + shown.map((r,i) => '<tr class="trow'+(r.key.split(',').sort().join(',')===cur?' me':'')+'" data-trio="'+esc(r.key)+'"><td class="rk num">'+(i+1)+'</td>'+TRC.map(c=>cell(c,r,'tr')).join('')+'</tr>').join('')
       + '</tbody></table>' : '<div class="empty">No three-man group has '+minMin+' minutes together yet.</div>')
@@ -1028,7 +1028,7 @@ document.addEventListener('click', e => {
   const t = e.target.closest('[data-trio],[data-trall],[data-dash],[data-sched],[data-lu],[data-lumin],[data-sc],[data-mdl],[data-ts]');
   if(!t) return;
   const d = t.dataset;
-  if(d.trio){ state.lp = d.trio.split(','); renderLineupPerf(); $('#lineupPerf').scrollIntoView({block:'start'}); }
+  if(d.trio){ state.lp = d.trio.split(','); renderLineupPerf(); $('#lpFilters').scrollIntoView({block:'start'}); }
   else if(d.trall){ state.trAll = !state.trAll; renderTrioTable(); }
   else if(d.sched){ state.schedAll = !state.schedAll; renderSchedule(); if(!state.schedAll) $('#ovSched').scrollIntoView({block:'start'}); }
   else if(d.dash){ state.dash = d.dash; hideTip(); renderTabs(); history.replaceState(null,'','#'+d.dash); const tb = $('#tabs'); if(tb.getBoundingClientRect().top < 0 || scrollY > tb.offsetTop) scrollTo({top: tb.offsetTop, behavior:'instant'}); }
