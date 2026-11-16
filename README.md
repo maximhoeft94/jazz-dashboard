@@ -18,14 +18,11 @@ The current Jazz season, split into dashboards (tabs), under a header with the r
 
 - **Team Performance (Overview):** the record with home/road, last 10, and streak; the next 10 games with tip time (Mountain), opponent and their record, arena, and TV; and a point-differential bar for every game played
 - **Player Performance:** pick a player and a game (or the whole season) to see a zone shot chart in 11 zones colored by FG%, plus that game's scoring line, shooting splits, and a zone-by-zone breakdown
-- **Jazz vs. League:** 22 team stats with the league average, the Jazz's rank, and a strip plot of all 30 teams; Dean Oliver's four factors; and splits (home/road, vs. .500 teams, close games, by month)
-- **League Table:** all 30 teams (traditional, advanced, four factors), sortable, with a league-average row
-- **Players:** per game, per 36, totals, advanced, and shooting views, counting Jazz games only
+- **Lineup Performance:** in progress
 - **Lineups:** 5-man units and 2-man pairs with a minutes filter, plus an offense-vs-defense scatter
 - **On/Off:** Jazz net rating with each player on the floor minus with him off
 - **Shot Chart:** every Jazz field goal attempt, as hot/cold hexagons against the league's FG% from the same zone, or as makes and misses
 - **Models**, computed in the browser: expected wins (Pythagorean), shot quality vs. shot making, a ridge-regression lineup impact model, and a four-factor regression
-- **Player vs. Player:** any Jazz player against any NBA player, in league percentiles
 
 Each dashboard has its own link (for example `#players`), so you can share a specific tab.
 

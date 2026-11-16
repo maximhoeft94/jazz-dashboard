@@ -318,14 +318,11 @@ footer{margin-top:40px;font-size:13px;color:var(--muted);border-top:3px solid va
   <nav class="tabs" id="tabs" role="tablist" aria-label="Dashboards"></nav>
   <section id="overview"></section>
   <section id="playerPerf"></section>
-  <section id="vsLeague"></section>
-  <section id="leagueTable"></section>
-  <section id="players"></section>
+  <section id="lineupPerf"></section>
   <section id="lineups"></section>
   <section id="onoff"></section>
   <section id="shots"></section>
   <section id="models"></section>
-  <section id="h2h"></section>
   <footer id="foot"></footer>
 </div>
 
@@ -348,11 +345,11 @@ const mean = xs => { xs = xs.filter(ok); return xs.length ? xs.reduce((s,x)=>s+x
 if(!D){ document.body.innerHTML = '<div class="wrap"><div class="empty">No data embedded. Run <code>python fetch_jazz.py</code> to load the seasons.</div></div>'; return; }
 
 /* ---------- state ---------- */
-const DASH_IDS = ['overview','playerPerf','vsLeague','leagueTable','players','lineups','onoff','shots','models','h2h'];
+const DASH_IDS = ['overview','playerPerf','lineupPerf','lineups','onoff','shots','models'];
 const state = {
   season: D.current || D.order[0], dash: (DASH_IDS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview'), ins:'league', lt:'adv', pm:'pg', lu:'5', luMin:null,
   scP:'ALL', scMode:'hex', mdl:'pyth', schedAll:false, ppPlayer:null, ppGame:null, pA:null, pB:null,
-  sort:{ ro:{k:'ppg',d:-1}, lt:{k:'net',d:-1}, pl:{k:'min',d:-1}, lu:{k:'min',d:-1} }
+  sort:{ ro:{k:'ppg',d:-1}, lu:{k:'min',d:-1} }
 };
 
 /* ---------- per-season model (memoized) ---------- */
@@ -405,7 +402,7 @@ const rkColor = (r,n) => r==null ? 'var(--muted)' : r <= n/3 ? 'var(--good)' : r
 const rkBadge = (r,n,dir) => r==null ? '' : '<span class="rkb" style="background:'+(dir===0?'var(--muted)':rkColor(r,n))+'">'+ord(r)+'</span>';
 
 /* ---------- tabs + hero ---------- */
-const DASH = [['overview','Team Performance (Overview)'],['playerPerf','Player Performance'],['vsLeague','Jazz vs. League'],['leagueTable','League Table'],['players','Players'],['lineups','Lineups'],['onoff','On/Off'],['shots','Shot Chart'],['models','Models'],['h2h','Player vs. Player']];
+const DASH = [['overview','Team Performance (Overview)'],['playerPerf','Player Performance'],['lineupPerf','Lineup Performance'],['lineups','Lineups'],['onoff','On/Off'],['shots','Shot Chart'],['models','Models']];
 function renderTabs(){
   $('#tabs').innerHTML = DASH.map(([id,lab]) => '<button class="tab'+(state.dash===id?' on':'')+'" role="tab" aria-selected="'+(state.dash===id)+'" aria-controls="'+id+'" data-dash="'+id+'">'+lab+'</button>').join('');
   DASH.forEach(([id]) => { $('#'+id).hidden = state.dash!==id; });
@@ -430,50 +427,6 @@ function kpiRows(X, G, streak){
   return '<div class="kgrid" data-k="'+KTHEME+'">'+row1+row2+'</div>';
 }
 
-/* ---------- Jazz vs league ---------- */
-const VS = [
-  ['Results', [['wpct','Win %',1,3,'Share of games won'],['net','Net rating',1,1,'Offensive minus defensive rating'],['pm','Point margin',1,1,'Average scoring margin per game'],['pace','Pace',0,1,'Possessions per 48 minutes. Neither good nor bad on its own.']]],
-  ['Offense', [['ortg','Offensive rating',1,1,'Points scored per 100 possessions'],['pts','Points per game',1,1,''],['ts','True shooting %',1,1,'Scoring efficiency counting 3s and free throws'],['efg','Effective FG %',1,1,'FG% with 3s worth 1.5 field goals'],['fg3p','3-point %',1,1,''],['tpar','3-point attempt rate',0,3,'Share of shots from three. A style marker, not good or bad.'],['ftrB','Free throw rate',1,3,'Free throw attempts per field goal attempt'],['astp','Assist %',1,1,'Share of made baskets that were assisted'],['tovp','Turnover %',-1,1,'Turnovers per 100 possessions'],['orebp','Offensive rebound %',1,1,'Share of own misses rebounded']]],
-  ['Defense', [['drtg','Defensive rating',-1,1,'Points allowed per 100 possessions'],['opp','Opponent points',-1,1,'Points allowed per game'],['oefg','Opponent eFG %',-1,1,'Opponent effective field goal %'],['otovp','Forced turnover %',1,1,'Opponent turnovers per 100 possessions'],['drebp','Defensive rebound %',1,1,'Share of opponent misses rebounded'],['oftr','Opponent FT rate',-1,3,'Opponent free throw attempts per FGA'],['stl','Steals per game',1,1,''],['blk','Blocks per game',1,1,'']]]
-];
-function strip(teams, k, dir, me, avg){
-  const vals = teams.map(t => t[k]).filter(ok); if(!vals.length) return '';
-  let lo = Math.min.apply(null,vals), hi = Math.max.apply(null,vals); if(hi===lo){ lo-=1; hi+=1; }
-  const X = v => { const f = (v-lo)/(hi-lo); return (3 + (dir===-1 ? 1-f : f)*94).toFixed(2); };
-  let s = '<div class="strip" aria-hidden="true"><span class="ax"></span>';
-  if(ok(avg)) s += '<span class="avg" style="left:'+X(avg)+'%"></span>';
-  teams.forEach(t => { if(ok(t[k]) && t.ab!==me.ab) s += '<span class="o" style="left:'+X(t[k])+'%"></span>'; });
-  if(ok(me[k])) s += '<span class="me" style="left:'+X(me[k])+'%"></span>';
-  return s + '</div>';
-}
-function fmtK(k,v,d){ return k==='wpct'||k==='tpar'||k==='ftrB'||k==='oftr' ? p3(v) : (k==='pm' ? sgn(v,d) : k==='net' ? sgn(v,d) : num(v,d)); }
-
-const INS = [['league','Against the league'],['ff','Four factors'],['splits','Splits']];
-function renderVsLeague(){
-  const X = S(), J = X.J, n = X.teams.length;
-  let h = '<div class="sh"><h2>Jazz vs. the league</h2><span class="note">'+esc(state.season)+', '+J.gp+' games</span></div>';
-  h += '<div class="pills">'+INS.map(i => '<button class="pill'+(state.ins===i[0]?' on':'')+'" data-ins="'+i[0]+'">'+i[1]+'</button>').join('')+'</div>';
-  if(state.ins==='league'){
-    h += '<div class="lgd"><span><b class="c" style="background:var(--jazz)"></b>Jazz</span><span><b class="c" style="background:#b9b4cc"></b>Other 29 teams</span><span><b style="background:none;border-left:2px dashed var(--muted);border-radius:0;width:2px"></b>League average</span><span>Right is better in every strip.</span></div>';
-    h += '<div class="panel scroll"><table class="vs"><thead><tr><th class="l">Stat</th><th>Jazz</th><th>League</th><th>Diff</th><th>Rank</th><th class="l">Where the Jazz sit among 30 teams</th></tr></thead><tbody>';
-    VS.forEach(([grp, rows]) => {
-      h += '<tr><td class="l" colspan="6" style="background:var(--soft);font-family:var(--font-d);font-weight:600;font-size:17px;color:var(--ink)">'+grp+'</td></tr>';
-      rows.forEach(([k,lab,dir,d,desc]) => {
-        const avg = mean(X.teams.map(t=>t[k])), r = rankOf(X.teams,k,dir,J.ab), diff = ok(J[k])&&ok(avg) ? J[k]-avg : null;
-        const good = dir===0 || !ok(diff) ? '' : (diff*dir>0 ? 'W' : diff*dir<0 ? 'L' : '');
-        h += '<tr><td class="l"'+(desc?' title="'+esc(desc)+'"':'')+'>'+lab+'</td><td class="num"><b>'+fmtK(k,J[k],d)+'</b></td><td class="num note">'+fmtK(k,avg,d)+'</td>'
-          + '<td class="num '+good+'">'+(ok(diff)?(diff>0?'+':'')+(k==='wpct'||k==='tpar'||k==='ftrB'||k==='oftr'?diff.toFixed(3).replace(/^(-?)0/,'$1'):diff.toFixed(d)):'–')+'</td>'
-          + '<td class="num">'+(r?(dir===0?ord(r):rkBadge(r,n,dir)):'–')+'</td><td class="st">'+strip(X.teams,k,dir===0?1:dir,J,avg)+'</td></tr>';
-      });
-    });
-    h += '</tbody></table></div>';
-  } else if(state.ins==='ff'){
-    h += fourFactors(X);
-  } else {
-    h += splits(X);
-  }
-  $('#vsLeague').innerHTML = h;
-}
 function renderOverview(){
   const X = S(), J = X.J, G = X.games.filter(g => ok(g.margin)), n = X.teams.length;
   const rec = L => { const w = L.filter(g=>g.res==='W').length; return w+'-'+(L.length-w); };
@@ -676,36 +629,6 @@ function marginChart(G){
   else { const step = Math.max(1, Math.round(G.length/12)); G.forEach((g,i) => { if(i%step===0) s += '<text x="'+(ml+i*bw+bw/2)+'" y="'+(H-mb+16)+'" text-anchor="middle">'+g.n+'</text>'; }); s += '<text x="'+(W/2)+'" y="'+(H-4)+'" text-anchor="middle">Game number</text>'; }
   return s + '</svg>';
 }
-function fourFactors(X){
-  const J = X.J, avg = k => mean(X.teams.map(t=>t[k])), n = X.teams.length;
-  const F = [['Offense',[['efg','Shooting (eFG %)',1],['tovp','Turnovers (TOV %)',-1],['orebp','Offensive rebounding (OREB %)',1],['ftr','Free throws (FTA per FGA)',1]]],
-             ['Defense',[['oefg','Opponent shooting (eFG %)',-1],['otovp','Forced turnovers (TOV %)',1],['oorebp','Opponent offensive rebounding',-1],['oftr','Opponent free throws (FTA per FGA)',-1]]]];
-  let h = '<div class="note" style="margin:-2px 0 8px">Dean Oliver\'s four factors explain most of the gap between winning and losing teams. Bars show how far the Jazz are from league average, in the better (green) or worse (red) direction.</div><div class="g2">';
-  F.forEach(([side, rows]) => {
-    h += '<div class="panel card"><h3>'+side+'</h3>';
-    rows.forEach(([k,lab,dir]) => {
-      const a = avg(k), sd = Math.sqrt(mean(X.teams.map(t=>Math.pow(t[k]-a,2)))) || 1, z = ok(J[k]) ? (J[k]-a)/sd*dir : 0;
-      const w = Math.min(100, Math.abs(z)/2.5*100).toFixed(1), r = rankOf(X.teams,k,dir,J.ab), isF = k==='ftr'||k==='oftr';
-      h += '<div class="cr"><span class="tm" title="'+esc(lab)+'">'+esc(lab)+'</span><span class="dv rpt" data-n="'+esc(lab)+'" data-c="var(--jazz)" data-l="Jazz::'+(isF?p3(J[k]):num(J[k],1))+'||League average::'+(isF?p3(a):num(a,1))+'||Rank::'+(r?ord(r)+' of '+n:'–')+'"><span class="l">'+(z<0?'<i style="width:'+w+'%;background:var(--bad)"></i>':'')+'</span><span class="r">'+(z>0?'<i style="width:'+w+'%;background:var(--good)"></i>':'')+'</span></span><span class="v num">'+(isF?p3(J[k]):num(J[k],1))+'</span></div>';
-    });
-    h += '<div class="note" style="margin-top:6px">Bar length: standard deviations from the league average (full bar = 2.5).</div></div>';
-  });
-  return h + '</div>';
-}
-function splits(X){
-  const G = X.games.filter(g => ok(g.margin));
-  if(!G.length) return '<div class="panel empty">No games played yet.</div>';
-  const rec = L => { const w = L.filter(g=>g.res==='W').length; return {w, l:L.length-w, m: mean(L.map(g=>g.margin)), n:L.length}; };
-  const over = ab => { const t = X.byAb[ab]; return t && ok(t.wpct) && t.wpct >= .5; };
-  const rows = [['Home', G.filter(g=>g.home)], ['Road', G.filter(g=>!g.home)], ['vs. teams .500 or better', G.filter(g=>over(g.opp))], ['vs. teams below .500', G.filter(g=>!over(g.opp))],
-    ['Close games (5 points or fewer)', G.filter(g=>Math.abs(g.margin)<=5)], ['Blowouts (15+ points)', G.filter(g=>Math.abs(g.margin)>=15)]];
-  const months = {}; G.forEach(g => { const k = g.d.slice(0,7); (months[k] = months[k] || []).push(g); });
-  const mName = k => new Date(+k.slice(0,4), +k.slice(5,7)-1, 1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
-  const tbl = (title, list) => '<div class="panel scroll"><div class="pad" style="padding-bottom:4px"><h3 style="font-family:var(--font-d);font-weight:600;font-size:21px;margin:0">'+title+'</h3></div><table><thead><tr><th class="l">Split</th><th>GP</th><th>Record</th><th>Win %</th><th>Avg margin</th></tr></thead><tbody>'
-    + list.map(([l,L]) => { const r = rec(L); return '<tr><td class="l">'+esc(l)+'</td><td class="num">'+r.n+'</td><td class="num">'+r.w+'-'+r.l+'</td><td class="num">'+(r.n?p3(r.w/r.n):'–')+'</td><td class="num '+(r.m>0?'W':r.m<0?'L':'')+'">'+sgn(r.m)+'</td></tr>'; }).join('') + '</tbody></table></div>';
-  return '<div class="g2">'+tbl('Situational', rows)+tbl('By month', Object.keys(months).sort().map(k => [mName(k), months[k]]))+'</div>';
-}
-
 /* ---------- generic sortable table ---------- */
 function sortRows(rows, id, cols){
   const st = state.sort[id], c = cols.find(x=>x.k===st.k) || cols[0], val = c.sv || (r => r[c.k]);
@@ -726,53 +649,9 @@ function cell(c, r, id){
   return '<td class="'+(c.l?'l':'num')+(on?' hl':'')+'">'+(c.f ? c.f(r) : esc(r[c.k]))+'</td>';
 }
 
-/* ---------- league table ---------- */
-const tmCell = t => '<span class="team"><span class="dot" style="background:'+esc(t.color)+'"></span>'+esc(t.ab)+' <span class="full">'+esc(t.name!==t.ab?t.name:'')+'</span></span>';
-const LT = {
-  base: [{k:'gp',t:'GP'},{k:'w',t:'W'},{k:'l',t:'L'},{k:'wpct',t:'Win %',f:r=>p3(r.wpct)},{k:'pts',t:'PTS',f:r=>num(r.pts,1),d:'Points per game'},{k:'opp',t:'OPP',f:r=>num(r.opp,1),d:'Opponent points per game'},
-    {k:'pm',t:'+/-',f:r=>sgn(r.pm),d:'Average point margin'},{k:'fgp',t:'FG%',f:r=>num(r.fgp,1)},{k:'fg3m',t:'3PM',f:r=>num(r.fg3m,1),d:'Threes made per game'},{k:'fg3p',t:'3P%',f:r=>num(r.fg3p,1)},
-    {k:'ftp',t:'FT%',f:r=>num(r.ftp,1)},{k:'reb',t:'REB',f:r=>num(r.reb,1)},{k:'ast',t:'AST',f:r=>num(r.ast,1)},{k:'tov',t:'TOV',f:r=>num(r.tov,1)},{k:'stl',t:'STL',f:r=>num(r.stl,1)},{k:'blk',t:'BLK',f:r=>num(r.blk,1)}],
-  adv: [{k:'gp',t:'GP'},{k:'wpct',t:'Win %',f:r=>p3(r.wpct)},{k:'ortg',t:'ORtg',f:r=>num(r.ortg,1),d:'Offensive rating: points scored per 100 possessions'},{k:'drtg',t:'DRtg',f:r=>num(r.drtg,1),d:'Defensive rating: points allowed per 100 possessions'},
-    {k:'net',t:'Net',f:r=>sgn(r.net),d:'Net rating: ORtg minus DRtg'},{k:'pace',t:'Pace',f:r=>num(r.pace,1),d:'Possessions per 48 minutes'},{k:'ts',t:'TS%',f:r=>num(r.ts,1),d:'True shooting %'},{k:'efg',t:'eFG%',f:r=>num(r.efg,1),d:'Effective field goal %'},
-    {k:'tpar',t:'3PAr',f:r=>p3(r.tpar),d:'Share of field goal attempts from three'},{k:'astp',t:'AST%',f:r=>num(r.astp,1),d:'Share of baskets assisted'},{k:'orebp',t:'OREB%',f:r=>num(r.orebp,1)},{k:'drebp',t:'DREB%',f:r=>num(r.drebp,1)},{k:'tovp',t:'TOV%',f:r=>num(r.tovp,1),d:'Turnovers per 100 possessions'}],
-  ff: [{k:'gp',t:'GP'},{k:'net',t:'Net',f:r=>sgn(r.net)},{k:'efg',t:'eFG%',f:r=>num(r.efg,1),d:'Offense: effective field goal %'},{k:'tovp',t:'TOV%',f:r=>num(r.tovp,1),d:'Offense: turnovers per 100 possessions'},{k:'orebp',t:'OREB%',f:r=>num(r.orebp,1),d:'Offense: offensive rebound %'},
-    {k:'ftr',t:'FT rate',f:r=>p3(r.ftr),d:'Offense: free throw attempts per FGA'},{k:'oefg',t:'Opp eFG%',f:r=>num(r.oefg,1),d:'Defense: opponent effective FG %'},{k:'otovp',t:'Opp TOV%',f:r=>num(r.otovp,1),d:'Defense: opponent turnovers per 100'},
-    {k:'oorebp',t:'Opp OREB%',f:r=>num(r.oorebp,1),d:'Defense: opponent offensive rebound %'},{k:'oftr',t:'Opp FT rate',f:r=>p3(r.oftr),d:'Defense: opponent FTA per FGA'}]
-};
-function renderLeagueTable(){
-  const X = S(), cols = [{k:'ab',t:'Team',l:1,f:tmCell,sv:r=>r.ab}].concat(LT[state.lt]);
-  if(!cols.some(c=>c.k===state.sort.lt.k)) state.sort.lt = {k:cols[1].k, d:-1};
-  const rows = sortRows(X.teams, 'lt', cols);
-  let h = '<div class="sh"><h2>League table</h2><span class="note">All 30 teams, per game. Click a column to sort; the Jazz row is highlighted.</span></div>';
-  h += '<div class="pills">'+[['base','Traditional'],['adv','Advanced'],['ff','Four factors']].map(p=>'<button class="pill'+(state.lt===p[0]?' on':'')+'" data-lt="'+p[0]+'">'+p[1]+'</button>').join('')+'</div>';
-  h += '<div class="panel scroll"><table>'+thead('lt', cols, '<th class="rk">#</th>')+'<tbody>';
-  rows.forEach((t,i) => { h += '<tr'+(t.ab===D.team.ab?' class="me"':'')+'><td class="rk num">'+(i+1)+'</td>'+cols.map(c=>cell(c,t,'lt')).join('')+'</tr>'; });
-  const avgRow = {}; LT[state.lt].forEach(c => avgRow[c.k] = mean(X.teams.map(t=>t[c.k])));
-  h += '<tr class="avg"><td></td><td class="l">League average</td>'+LT[state.lt].map(c => '<td class="num">'+(c.k==='gp'||c.k==='w'||c.k==='l'?num(avgRow[c.k],1):(c.f?c.f(avgRow):num(avgRow[c.k],1)))+'</td>').join('')+'</tr>';
-  $('#leagueTable').innerHTML = h + '</tbody></table></div>';
-}
-
-/* ---------- players ---------- */
-const PC = {
-  pg: [{k:'gp',t:'GP'},{k:'mpg',t:'MIN',f:r=>num(r.mpg,1)},{k:'ppg',t:'PTS',f:r=>num(r.ppg,1)},{k:'rpg',t:'REB',f:r=>num(r.rpg,1)},{k:'apg',t:'AST',f:r=>num(r.apg,1)},{k:'spg',t:'STL',f:r=>num(r.spg,1)},{k:'bpg',t:'BLK',f:r=>num(r.bpg,1)},
-    {k:'tpg',t:'TOV',f:r=>num(r.tpg,1)},{k:'fgp',t:'FG%',f:r=>num(r.fgp,1)},{k:'fg3p',t:'3P%',f:r=>num(r.fg3p,1)},{k:'ftp',t:'FT%',f:r=>num(r.ftp,1)},{k:'pmg',t:'+/-',f:r=>sgn(r.pmg),d:'Team point margin per game with the player on court'}],
-  p36: [{k:'gp',t:'GP'},{k:'min',t:'MIN',f:r=>num(r.min,0),d:'Total minutes'},{k:'p36',t:'PTS',f:r=>num(r.p36,1)},{k:'r36',t:'REB',f:r=>num(r.r36,1)},{k:'o36',t:'OREB',f:r=>num(r.o36,1)},{k:'a36',t:'AST',f:r=>num(r.a36,1)},{k:'s36',t:'STL',f:r=>num(r.s36,1)},
-    {k:'b36',t:'BLK',f:r=>num(r.b36,1)},{k:'t36',t:'TOV',f:r=>num(r.t36,1)},{k:'f36',t:'PF',f:r=>num(r.f36,1)},{k:'fga36',t:'FGA',f:r=>num(r.fga36,1)},{k:'fg3a36',t:'3PA',f:r=>num(r.fg3a36,1)},{k:'fta36',t:'FTA',f:r=>num(r.fta36,1)}],
-  tot: [{k:'gp',t:'GP'},{k:'min',t:'MIN',f:r=>num(r.min,0)},{k:'pts',t:'PTS'},{k:'reb',t:'REB'},{k:'oreb',t:'OREB'},{k:'ast',t:'AST'},{k:'stl',t:'STL'},{k:'blk',t:'BLK'},{k:'tov',t:'TOV'},{k:'fgm',t:'FGM'},{k:'fga',t:'FGA'},{k:'fg3m',t:'3PM'},{k:'fg3a',t:'3PA'},{k:'ftm',t:'FTM'},{k:'fta',t:'FTA'},{k:'pm',t:'+/-',f:r=>sgn(r.pm,0)}],
-  adv: [{k:'gp',t:'GP'},{k:'mpg',t:'MIN',f:r=>num(r.mpg,1)},{k:'usg',t:'USG%',f:r=>num(r.usg,1),d:'Usage: share of team plays used while on court'},{k:'ts',t:'TS%',f:r=>num(r.ts,1),d:'True shooting %'},{k:'efg',t:'eFG%',f:r=>num(r.efg,1)},{k:'astp',t:'AST%',f:r=>num(r.astp,1),d:'Share of teammate baskets assisted while on court'},
-    {k:'rebp',t:'REB%',f:r=>num(r.rebp,1),d:'Share of available rebounds grabbed'},{k:'ortg',t:'ORtg',f:r=>num(r.ortg,1),d:'Team points per 100 possessions with the player on court'},{k:'drtg',t:'DRtg',f:r=>num(r.drtg,1),d:'Opponent points per 100 possessions with the player on court'},{k:'net',t:'Net',f:r=>sgn(r.net),d:'On-court net rating'},{k:'pie',t:'PIE',f:r=>num(r.pie,1),d:'Player Impact Estimate: share of game events the player was part of'}],
-  sh: [{k:'gp',t:'GP'},{k:'fgm',t:'FGM-A',f:r=>r.fgm+'-'+r.fga,sv:r=>r.fga},{k:'fgp',t:'FG%',f:r=>num(r.fgp,1)},{k:'fg3m',t:'3PM-A',f:r=>r.fg3m+'-'+r.fg3a,sv:r=>r.fg3a},{k:'fg3p',t:'3P%',f:r=>num(r.fg3p,1)},{k:'ftm',t:'FTM-A',f:r=>r.ftm+'-'+r.fta,sv:r=>r.fta},{k:'ftp',t:'FT%',f:r=>num(r.ftp,1)},
-    {k:'tpar',t:'3PAr',f:r=>p3(r.tpar),d:'Share of shots from three'},{k:'ftr',t:'FTr',f:r=>p3(r.ftr),d:'Free throw attempts per FGA'},{k:'ts',t:'TS%',f:r=>num(r.ts,1)},{k:'efg',t:'eFG%',f:r=>num(r.efg,1)}]
-};
-const plName = r => '<b>'+esc(r.name)+'</b><span class="pos">'+esc(r.pos||'')+(r.num!==''&&r.num!=null?' #'+esc(r.num):'')+'</span>';
-function renderPlayers(){
-  const X = S(), cols = [{k:'name',t:'Player',l:1,f:plName,sv:r=>r.name},{k:'age',t:'Age',f:r=>num(r.age,0)}].concat(PC[state.pm]);
-  if(!cols.some(c=>c.k===state.sort.pl.k)) state.sort.pl = {k:cols[2].k, d:-1};
-  const rows = sortRows(X.jazz, 'pl', cols), minCut = Math.max(20, X.J.gp*4);
-  let h = '<div class="sh"><h2>Players</h2><span class="note">Jazz games only. Grey rows: under '+minCut+' minutes.</span></div>';
-  h += '<div class="pills">'+[['pg','Per game'],['p36','Per 36 minutes'],['tot','Totals'],['adv','Advanced'],['sh','Shooting']].map(p=>'<button class="pill'+(state.pm===p[0]?' on':'')+'" data-pm="'+p[0]+'">'+p[1]+'</button>').join('')+'</div>';
-  h += '<div class="panel scroll"><table>'+thead('pl', cols)+'<tbody>'+rows.map(r => '<tr'+((r.min||0)<minCut?' class="dim"':'')+'>'+cols.map(c=>cell(c,r,'pl')).join('')+'</tr>').join('')+'</tbody></table></div>';
-  $('#players').innerHTML = h;
+/* ---------- lineup performance (new dashboard, to be built) ---------- */
+function renderLineupPerf(){
+  $('#lineupPerf').innerHTML = '<div class="sh"><h2>Lineup Performance</h2></div>';
 }
 
 /* ---------- lineups ---------- */
@@ -1007,41 +886,6 @@ function mFF(){
   return h;
 }
 
-/* ---------- head to head ---------- */
-const RAD = [['p36','Points',1,1],['r36','Rebounds',1,1],['a36','Assists',1,1],['stk36','Steals + blocks',1,1],['t36','Turnovers (fewer)',-1,1],['ts','True shooting %',1,1],['usg','Usage %',1,1],['net','On-court net rating',1,1]];
-function renderH2H(){
-  const X = S();
-  const minMin = Math.max(60, X.J.gp*10), pool = X.league.filter(p => (p.min||0) >= minMin);
-  let h = '<div class="sh"><h2>Player vs. player</h2><span class="note">Percentiles among '+pool.length+' NBA players with '+minMin+'+ minutes. Per-36 stats unless marked.</span></div>';
-  const jz = X.jazz.filter(p => (p.min||0) > 0).sort((a,b)=>b.min-a.min);
-  if(jz.length < 1 || pool.length < 10){ $('#h2h').innerHTML = h + '<div class="panel empty">Not enough minutes played yet for percentiles.</div>'; return; }
-  const all = {}; X.league.forEach(p => all[p.id] = p); jz.forEach(p => all[p.id] = p);
-  if(!all[state.pA]) state.pA = jz[0].id;
-  if(!all[state.pB] || String(state.pB)===String(state.pA)) state.pB = (jz[1]||pool[0]).id;
-  const A = all[state.pA], B = all[state.pB];
-  const sorted = {}; RAD.forEach(([k]) => sorted[k] = pool.map(p=>p[k]).filter(ok).sort((a,b)=>a-b));
-  const pctl = (k,v,dir) => { const s = sorted[k]; if(!ok(v)||!s.length) return 0; let lo=0, hi=s.length; while(lo<hi){ const m=(lo+hi)>>1; if(s[m] <= v) lo=m+1; else hi=m; } const f = lo/s.length; return 100*(dir===-1 ? 1-f : f); };
-  const pa = RAD.map(([k,,dir]) => pctl(k,A[k],dir)), pb = RAD.map(([k,,dir]) => pctl(k,B[k],dir));
-  const cx = 260, cy = 230, R = 165, N = RAD.length, ang = i => -Math.PI/2 + i*2*Math.PI/N, pt = (i,v) => [cx + Math.cos(ang(i))*R*v/100, cy + Math.sin(ang(i))*R*v/100];
-  let s = '<svg class="radar" viewBox="0 0 520 470" role="img" aria-label="Percentile radar">';
-  [25,50,75,100].forEach(v => s += '<polygon class="ring" points="'+RAD.map((_,i)=>pt(i,v).map(n=>n.toFixed(1)).join(',')).join(' ')+'"/>');
-  RAD.forEach((r,i) => { const [x,y] = pt(i,100), [lx,ly] = pt(i,118); s += '<line class="spoke" x1="'+cx+'" y1="'+cy+'" x2="'+x+'" y2="'+y+'"/><text x="'+lx.toFixed(1)+'" y="'+(ly+4).toFixed(1)+'" text-anchor="'+(Math.abs(lx-cx)<10?'middle':lx>cx?'start':'end')+'">'+esc(r[1])+'</text>'; });
-  [[B,pb,'var(--b)'],[A,pa,'var(--a)']].forEach(([P,pp,c]) => {
-    s += '<polygon points="'+pp.map((v,i)=>pt(i,Math.max(3,v)).map(n=>n.toFixed(1)).join(',')).join(' ')+'" fill="'+c+'" fill-opacity=".16" stroke="'+c+'" stroke-width="2.5" stroke-linejoin="round"/>';
-    pp.forEach((v,i) => { const [x,y] = pt(i,Math.max(3,v)), k = RAD[i][0], isP = k==='ts'||k==='usg';
-      s += '<g class="rpt" data-n="'+esc(P.name)+'" data-c="'+c+'" data-l="'+esc(RAD[i][1])+'::'+(k==='net'?sgn(P[k]):num(P[k],1))+(isP?'%':'')+'||Percentile::'+Math.round(v)+'"><circle class="hit" cx="'+x+'" cy="'+y+'" r="10"/><circle class="dotp" cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="5" fill="'+c+'"/></g>'; });
-  });
-  s += '</svg>';
-  const optsJ = jz.map(p => '<option value="'+p.id+'">'+esc(p.name)+'</option>').join('');
-  const optsL = X.league.filter(p => p.team!==D.team.ab && (p.min||0) >= minMin).sort((a,b)=>a.name.localeCompare(b.name)).map(p => '<option value="'+p.id+'">'+esc(p.name)+' ('+esc(p.team)+')</option>').join('');
-  const mk = (k, v) => '<select class="'+(k==='pA'?'ca':'cb')+'" data-sel="'+k+'" aria-label="'+(k==='pA'?'First':'Second')+' player">'+(k==='pA'?optsJ:'<optgroup label="Jazz">'+optsJ+'</optgroup><optgroup label="Rest of the league">'+optsL+'</optgroup>').replace('value="'+v+'"','value="'+v+'" selected')+'</select>';
-  const rows = [['gp','Games',0],['mpg','Minutes per game',1],['ppg','Points per game',1]].concat(RAD.map(r=>[r[0],r[1]+(r[0].endsWith('36')?' per 36':''),r[2]===-1?-1:1]));
-  const cmp = '<table class="cmp"><tbody>'+rows.map(([k,lab,dir]) => { const a = A[k], b = B[k], aw = dir && ok(a)&&ok(b) ? (dir===-1 ? a<b : a>b) : false, bw = dir && ok(a)&&ok(b) ? (dir===-1 ? b<a : b>a) : false, f = v => k==='net'?sgn(v):k==='gp'?v:num(v,1);
-    return '<tr><td class="a num'+(aw?' win':'')+'">'+f(a)+'</td><td class="k">'+esc(lab)+'</td><td class="b num'+(bw?' win':'')+'">'+f(b)+'</td></tr>'; }).join('')+'</tbody></table>';
-  h += '<div class="h2h"><div class="panel pad"><div class="sel">'+mk('pA',state.pA)+mk('pB',state.pB)+'</div>'+s+'</div><div class="panel pad"><div class="lgd"><span><b style="background:var(--a)"></b>'+esc(A.name)+'</span><span><b style="background:var(--b)"></b>'+esc(B.name)+(B.team!==D.team.ab?' ('+esc(B.team)+')':'')+'</span></div>'+cmp+'</div></div>';
-  $('#h2h').innerHTML = h;
-}
-
 /* ---------- tooltip ---------- */
 const tip = document.createElement('div'); tip.className = 'tip'; tip.setAttribute('role','tooltip'); document.body.appendChild(tip);
 function moveTip(x,y){ const r = tip.getBoundingClientRect(); let L = x+14, Tp = y-r.height-12;
@@ -1066,17 +910,14 @@ document.addEventListener('pointerout', e => { const g = e.target.closest && e.t
 addEventListener('scroll', hideTip, {passive:true});
 
 /* ---------- wiring ---------- */
-function renderAll(){ renderTabs(); renderHero(); renderOverview(); renderPlayerPerf(); renderVsLeague(); renderLeagueTable(); renderPlayers(); renderLineups(); renderOnOff(); renderShots(); renderModels(); renderH2H(); }
-const RENDER = {ro:renderRoster, lt:renderLeagueTable, pl:renderPlayers, lu:renderLineups};
+function renderAll(){ renderTabs(); renderHero(); renderOverview(); renderPlayerPerf(); renderLineupPerf(); renderLineups(); renderOnOff(); renderShots(); renderModels(); }
+const RENDER = {ro:renderRoster, lu:renderLineups};
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-dash],[data-sched],[data-ins],[data-lt],[data-pm],[data-lu],[data-lumin],[data-sc],[data-mdl],[data-ts]');
+  const t = e.target.closest('[data-dash],[data-sched],[data-lu],[data-lumin],[data-sc],[data-mdl],[data-ts]');
   if(!t) return;
   const d = t.dataset;
   if(d.sched){ state.schedAll = !state.schedAll; renderSchedule(); if(!state.schedAll) $('#ovSched').scrollIntoView({block:'start'}); }
   else if(d.dash){ state.dash = d.dash; hideTip(); renderTabs(); history.replaceState(null,'','#'+d.dash); const tb = $('#tabs'); if(tb.getBoundingClientRect().top < 0 || scrollY > tb.offsetTop) scrollTo({top: tb.offsetTop, behavior:'instant'}); }
-  else if(d.ins){ state.ins = d.ins; renderVsLeague(); }
-  else if(d.lt){ state.lt = d.lt; renderLeagueTable(); }
-  else if(d.pm){ state.pm = d.pm; renderPlayers(); }
   else if(d.lu){ state.lu = d.lu; state.luMin = null; renderLineups(); }
   else if(d.lumin!=null){ state.luMin = +d.lumin; renderLineups(); }
   else if(d.sc){ state.scMode = d.sc; renderShots(); }
@@ -1089,7 +930,6 @@ document.addEventListener('change', e => {
   if(k==='scP'){ state.scP = s.value; renderShots(); }
   else if(k==='ppPlayer'){ state.ppPlayer = s.value; state.ppGame = null; renderPlayerPerf(); }
   else if(k==='ppGame'){ state.ppGame = s.value; renderPlayerPerf(); }
-  else { state[k] = s.value; if(String(state.pA)===String(state.pB)){ const X = S(), o = X.jazz.find(p => String(p.id)!==String(state.pA)); if(o) state[k==='pA'?'pB':'pA'] = String(o.id); } renderH2H(); }
 });
 
 const fTS = s => new Date(s).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
