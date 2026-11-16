@@ -40,7 +40,7 @@ COLORS = {
     "NOP": "#0c2340", "NYK": "#f58426", "OKC": "#007ac1", "ORL": "#0077c0", "PHI": "#006bb6", "PHX": "#e56020",
     "POR": "#e03a3e", "SAC": "#5a2d81", "SAS": "#8a8d8f", "TOR": "#ce1141", "UTA": "#4b2a85", "WAS": "#002b5c",
 }
-CACHE_VERSION = 4
+CACHE_VERSION = 5
 STINT_FIELDS = ["fga", "fta", "oreb", "tov", "fgm", "fg3a", "fg3m", "ftm", "dreb", "ast", "stl", "blk"]
 TOV_TYPES = ("urnover", "Traveling", "Double Dribble", "Discontinued Dribble", "3-Second")
 ESPN_KEYS = {"minutes": "min", "points": "pts", "fieldGoalsMade-fieldGoalsAttempted": "fg",
@@ -145,6 +145,11 @@ def zone(dx, dy, three, dist):
 
 
 # ---------------------------------------------------------------- one game -> compact record
+def is_heave_miss(p):
+    """Missed end-of-quarter heaves are left out of official box scores, so they are left out here too."""
+    return "heave" in (p.get("type", {}).get("text", "") + " " + (p.get("text") or "")).lower() and not p.get("scoringPlay")
+
+
 def extract_game(s):
     """Reduce an ESPN summary to what the dashboard needs. Returns None if the game is not final."""
     h = s["header"]
@@ -200,7 +205,7 @@ def extract_game(s):
     if JAZZ in (home, away):
         g["stints"], shot_stint = jazz_stints(plays, g, tid)
     for p in plays:
-        if not p.get("shootingPlay") or p.get("pointsAttempted") not in (2, 3):
+        if not p.get("shootingPlay") or p.get("pointsAttempted") not in (2, 3) or is_heave_miss(p):
             continue
         co = p.get("coordinate") or {}
         x, y = co.get("x"), co.get("y")
@@ -278,7 +283,9 @@ def jazz_stints(plays, g, tid):
             nparts = len(p.get("participants") or [])
             if side is not None:
                 pa, made = p.get("pointsAttempted"), bool(p.get("scoringPlay"))
-                if p.get("shootingPlay") and pa in (2, 3):
+                if p.get("shootingPlay") and pa in (2, 3) and is_heave_miss(p):
+                    pass
+                elif p.get("shootingPlay") and pa in (2, 3):
                     side[0] += 1
                     if pa == 3: side[5] += 1
                     if made:
