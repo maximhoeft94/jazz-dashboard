@@ -313,7 +313,7 @@ const DASH_IDS = ['overview','vsLeague','leagueTable','players','lineups','onoff
 const state = {
   season: D.current || D.order[0], dash: (DASH_IDS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview'), ins:'league', lt:'adv', pm:'pg', lu:'5', luMin:null,
   scP:'ALL', scMode:'hex', mdl:'pyth', schedAll:false, pA:null, pB:null,
-  sort:{ lt:{k:'net',d:-1}, pl:{k:'min',d:-1}, lu:{k:'min',d:-1} }
+  sort:{ ro:{k:'ppg',d:-1}, lt:{k:'net',d:-1}, pl:{k:'min',d:-1}, lu:{k:'min',d:-1} }
 };
 
 /* ---------- per-season model (memoized) ---------- */
@@ -448,13 +448,30 @@ function renderOverview(){
   h += kpiRows(X, G, streak) + '<div style="height:18px"></div>';
   h += '<div class="panel card" style="margin-bottom:14px"><h3>Point differential by game</h3><div class="lgd"><span><b style="background:var(--good)"></b>Win</span><span><b style="background:var(--bad)"></b>Loss</span><span>Hover a bar for the score.</span></div>'+marginChart(G)+'</div>';
   h += '<div class="panel scroll"><div class="pad" style="padding-bottom:4px"><h3 style="font-family:var(--font-d);font-weight:600;font-size:21px;margin:0">Next 10 games</h3></div>'+nextGames(X)+'</div>';
-  h += '<hr class="seg"><div class="sh"><h2>Player Performance</h2><span class="note">Jazz games only</span></div>' + leaders(X);
+  h += '<hr class="seg"><div class="sh"><h2>Player Performance</h2><span class="note">Jazz games only</span></div>' + leaders(X) + '<div id="ovRoster" style="margin-top:18px"></div>';
   h += '<hr class="seg"><div class="appx">Appendix</div><div id="ovSched"></div>';
   $('#overview').innerHTML = h;
+  renderRoster();
   renderSchedule();
 }
 const fTime = iso => new Date(iso).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',timeZone:'America/Denver'})+' MT';
 const fDay = iso => new Date(iso).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',timeZone:'America/Denver'});
+const RO = [
+  {k:'num',t:'#',l:1,f:r=>esc(r.num||''),sv:r=>ok(+r.num)&&r.num!==''?+r.num:999,d:'Jersey number'},
+  {k:'name',t:'Player',l:1,f:r=>'<b>'+esc(r.name)+'</b><span class="pos">'+esc(r.pos||'')+'</span>',sv:r=>r.name},
+  {k:'gp',t:'GP',d:'Games played'},{k:'mpg',t:'MIN',f:r=>num(r.mpg,1),d:'Minutes per game'},
+  {k:'ppg',t:'PTS',f:r=>num(r.ppg,1),d:'Points per game'},{k:'rpg',t:'REB',f:r=>num(r.rpg,1),d:'Rebounds per game'},
+  {k:'apg',t:'AST',f:r=>num(r.apg,1),d:'Assists per game'},{k:'spg',t:'STL',f:r=>num(r.spg,1),d:'Steals per game'},
+  {k:'bpg',t:'BLK',f:r=>num(r.bpg,1),d:'Blocks per game'},{k:'tpg',t:'TOV',f:r=>num(r.tpg,1),d:'Turnovers per game'},
+  {k:'fgp',t:'FG%',f:r=>num(r.fgp,1),d:'Field goal %'},{k:'fg3p',t:'3P%',f:r=>num(r.fg3p,1),d:'3-point %'},
+  {k:'ftp',t:'FT%',f:r=>num(r.ftp,1),d:'Free throw %'},{k:'ts',t:'TS%',f:r=>num(r.ts,1),d:'True shooting %: scoring efficiency counting 3s and free throws'},
+  {k:'pmg',t:'+/-',f:r=>sgn(r.pmg),d:'Team point margin per game with him on the floor'}
+];
+function renderRoster(){
+  const X = S(), rows = sortRows(X.jazz, 'ro', RO);
+  $('#ovRoster').innerHTML = '<div class="panel scroll"><div class="pad" style="padding-bottom:4px"><h3 style="font-family:var(--font-d);font-weight:600;font-size:21px;margin:0">Full roster</h3><div class="note">Per game, Jazz games only. Click a column to sort.</div></div><table>'+thead('ro', RO)+'<tbody>'
+    + rows.map(r => '<tr'+(r.gp < Math.max(1, Math.ceil(X.J.gp*0.25)) ? ' class="dim"' : '')+'>'+RO.map(c=>cell(c,r,'ro')).join('')+'</tr>').join('') + '</tbody></table></div>';
+}
 function leaders(X){
   const J = X.J, minGp = Math.max(1, Math.ceil(J.gp*0.5));
   const pool = X.jazz.filter(p => p.gp >= minGp);
@@ -911,7 +928,7 @@ addEventListener('scroll', hideTip, {passive:true});
 
 /* ---------- wiring ---------- */
 function renderAll(){ renderTabs(); renderHero(); renderOverview(); renderVsLeague(); renderLeagueTable(); renderPlayers(); renderLineups(); renderOnOff(); renderShots(); renderModels(); renderH2H(); }
-const RENDER = {lt:renderLeagueTable, pl:renderPlayers, lu:renderLineups};
+const RENDER = {ro:renderRoster, lt:renderLeagueTable, pl:renderPlayers, lu:renderLineups};
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-dash],[data-sched],[data-ins],[data-lt],[data-pm],[data-lu],[data-lumin],[data-sc],[data-mdl],[data-ts]');
   if(!t) return;
@@ -925,7 +942,7 @@ document.addEventListener('click', e => {
   else if(d.lumin!=null){ state.luMin = +d.lumin; renderLineups(); }
   else if(d.sc){ state.scMode = d.sc; renderShots(); }
   else if(d.mdl){ state.mdl = d.mdl; renderModels(); }
-  else if(d.ts){ const [id,k] = d.ts.split(':'), st = state.sort[id]; if(st.k===k) st.d *= -1; else { st.k = k; st.d = (k==='names'||k==='name'||k==='ab') ? 1 : -1; } hideTip(); RENDER[id](); }
+  else if(d.ts){ const [id,k] = d.ts.split(':'), st = state.sort[id]; if(st.k===k) st.d *= -1; else { st.k = k; st.d = (k==='names'||k==='name'||k==='ab'||k==='num') ? 1 : -1; } hideTip(); RENDER[id](); }
 });
 document.addEventListener('change', e => {
   const s = e.target.closest('[data-sel]'); if(!s) return;
