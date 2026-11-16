@@ -35,6 +35,7 @@ button:focus-visible,select:focus-visible{outline:2px solid var(--div);outline-o
 
 /* masthead */
 .mast{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:14px}
+.asof{font-size:14px;font-weight:500;color:var(--muted)}
 .brand{font-family:var(--font-d);font-weight:700;font-size:20px;letter-spacing:.02em}
 .brand small{font-family:var(--font-b);font-weight:500;font-size:13px;color:var(--muted);margin-left:8px;letter-spacing:0}
 .banner{background:color-mix(in srgb,var(--b) 14%,var(--panel));border:1px solid color-mix(in srgb,var(--b) 55%,var(--line));border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:14px}
@@ -275,7 +276,7 @@ footer{margin-top:40px;font-size:13px;color:var(--muted);border-top:3px solid va
 <body>
 <div class="wrap">
   <div class="mast">
-    <div class="brand">Utah Jazz Dashboard<small id="asof"></small></div>
+    <div class="asof" id="asof"></div>
   </div>
   <div id="banner"></div>
   <div id="hero"></div>
@@ -376,7 +377,7 @@ function renderTabs(){
 const kpi = (l,val,sub,cls) => '<div class="kpi'+(cls?' '+cls:'')+'"><div class="kl">'+l+'</div><div class="kv num">'+val+'</div><div class="ks">'+sub+'</div></div>';
 function renderHero(){
   const mark = '<svg class="mark" viewBox="0 0 132 132" aria-hidden="true"><path class="b" d="M22 18H110V70H22Z"/><path class="m" d="M48 36H84V62H48Z"/><ellipse class="note" cx="62" cy="55" rx="5.2" ry="3.7" transform="rotate(-22 62 55)"/><path class="note-s" d="M66.6 54V40.5c2.6 3.4 7.4 4.4 6.6 9.6"/><path class="f" d="M40 74H92"/><path class="b" d="M44 76L52 116M58 76L60 116M74 76L72 116M88 76L80 116M46 92H86M48 106H84"/><path class="m" d="M66 70V74"/></svg>';
-  $('#hero').innerHTML = '<div class="hero"><div class="circle"><h1><span>'+esc(state.season)+' regular season</span>Utah Jazz</h1></div>'+mark+'</div>';
+  $('#hero').innerHTML = '<div class="hero"><div class="circle"><h1><span>'+esc(state.season)+' regular season</span>Utah Jazz</h1></div></div>';
 }
 const KTHEME = 'lavender';  // also available: 'night', 'gold'
 function kpiRows(X, G, streak){
@@ -443,14 +444,14 @@ function renderOverview(){
   let streak = '–';
   if(G.length){ const last = G[G.length-1].res; let k = 0; for(let i=G.length-1;i>=0 && G[i].res===last;i--) k++; streak = last+k; }
   const chip = (v,l) => '<div class="chip"><b class="num">'+v+'</b><span>'+l+'</span></div>';
-  let h = '<div class="sh"><h2>Team Performance</h2><span class="note">'+esc(state.season)+' regular season</span></div>';
+  let h = '<div class="sh"><h2>Team Performance</h2></div>';
   h += '<div class="rec"><div class="big num">'+J.w+'-'+J.l+'<small>Record, '+ord(rankOf(X.teams,'wpct',1,J.ab)||n)+' of '+n+' in win %</small></div><div class="chips">'
     + chip(rec(G.filter(g=>g.home)),'Home') + chip(rec(G.filter(g=>!g.home)),'Road') + chip(rec(G.slice(-10)),'Last '+Math.min(10,G.length))
     + '</div></div>';
   h += kpiRows(X, G, streak) + '<div style="height:18px"></div>';
-  h += '<div class="panel card" style="margin-bottom:14px"><h3>Point differential by game</h3><div class="lgd"><span><b style="background:var(--good)"></b>Win</span><span><b style="background:var(--bad)"></b>Loss</span><span>Hover a bar for the score.</span></div>'+marginChart(G)+'</div>';
+  h += '<div class="panel card" style="margin-bottom:14px"><h3>Point differential by game</h3><div class="lgd"><span><b style="background:var(--good)"></b>Win</span><span><b style="background:var(--bad)"></b>Loss</span></div>'+marginChart(G)+'</div>';
   h += '<div class="panel scroll"><div class="pad" style="padding-bottom:4px"><h3 style="font-family:var(--font-d);font-weight:600;font-size:21px;margin:0">Next 10 games</h3></div>'+nextGames(X)+'</div>';
-  h += '<hr class="seg"><div class="sh"><h2>Player Performance</h2><span class="note">Jazz games only</span></div>' + leaders(X) + '<div id="ovRoster" style="margin-top:18px"></div>';
+  h += '<hr class="seg"><div class="sh"><h2>Player Performance</h2></div>' + leaders(X) + '<div id="ovRoster" style="margin-top:18px"></div>';
   h += '<hr class="seg"><div class="appx">Appendix</div><div id="ovSched"></div>';
   $('#overview').innerHTML = h;
   renderRoster();
@@ -471,7 +472,7 @@ const RO = [
 ];
 function renderRoster(){
   const X = S(), rows = sortRows(X.jazz, 'ro', RO);
-  $('#ovRoster').innerHTML = '<div class="panel scroll"><div class="pad" style="padding-bottom:4px"><h3 style="font-family:var(--font-d);font-weight:600;font-size:21px;margin:0">Full roster</h3><div class="note">Per game, Jazz games only. Click a column to sort.</div></div><table>'+thead('ro', RO)+'<tbody>'
+  $('#ovRoster').innerHTML = '<div class="panel scroll"><div class="pad" style="padding-bottom:4px"><h3 style="font-family:var(--font-d);font-weight:600;font-size:21px;margin:0">Full roster</h3></div><table>'+thead('ro', RO)+'<tbody>'
     + rows.map(r => '<tr'+(r.gp < Math.max(1, Math.ceil(X.J.gp*0.25)) ? ' class="dim"' : '')+'>'+RO.map(c=>cell(c,r,'ro')).join('')+'</tr>').join('') + '</tbody></table></div>';
 }
 function leaders(X){
@@ -484,11 +485,11 @@ function leaders(X){
       '<tr'+(i===0?' class="first"':'')+'><td class="rk num">'+(i+1)+'</td><td class="l"><b>'+esc(p.name)+'</b><span class="pos">'+esc(p.pos||'')+'</span><div class="note">'+p[tot]+' total, '+p.gp+' games</div></td><td class="num big">'+num(p[k],1)+'</td></tr>').join('')
       : '<tr><td class="empty">No qualified players yet.</td></tr>') + '</tbody></table></div>';
   };
-  return '<div class="ldrs">'+cats.map(card).join('')+'</div><div class="note" style="margin-top:6px">Players who have appeared in at least half of the Jazz\'s games ('+minGp+' of '+J.gp+').</div>';
+  return '<div class="ldrs">'+cats.map(card).join('')+'</div>';
 }
 function renderSchedule(){
   const X = S(), sch = D.schedule || [];
-  let h = '<div class="sh"><h2>Season Schedule</h2><span class="note">'+esc(state.season)+' regular season, every Jazz game in order. Times are Mountain.</span></div>';
+  let h = '<div class="sh"><h2>Season Schedule</h2></div>';
   if(!sch.length){ $('#ovSched').innerHTML = h + '<div class="panel empty">The schedule is not loaded yet. It arrives with the next data refresh.</div>'; return; }
   const byId = {}; X.games.forEach(g => byId[g.id] = g);
   let w = 0, l = 0, nextMarked = false;
@@ -502,11 +503,11 @@ function renderSchedule(){
     const t = X.byAb[g.opp];
     return '<tr'+(isNext?' class="next"':'')+'><td class="rk num">'+(i+1)+'</td><td class="l">'+esc(fDay(g.date))+'</td>'
       + '<td class="l"><span class="ha'+(g.home?' h':'')+'">'+(g.home?'vs':'@')+'</span> <span class="team"><span class="dot" style="background:'+esc(t?t.color:'#999')+'"></span>'+esc(g.oppName||g.opp)+'</span></td>'
-      + '<td class="l">'+res+'</td><td class="num">'+(recAfter||'')+'</td><td class="l">'+esc(place(g))+'</td><td class="l note">'+(fin?'':esc((g.tv||[]).join(', ')))+'</td></tr>';
+      + '<td class="l">'+res+'</td><td class="num">'+(recAfter||'')+'</td><td class="l">'+esc(place(g))+'</td></tr>';
   });
   const shown = state.schedAll ? rows : rows.slice(0,20), played = sch.filter(g=>g.state==='final').length;
-  h += '<div class="lgd"><span>'+played+' played, '+(sch.length-played)+' to go.</span><span><b style="background:var(--b);height:3px;vertical-align:3px"></b>Next game</span>'+(sch.length<(D.seasonGames||82)?'<span>ESPN lists '+sch.length+' games so far; the NBA adds the last '+((D.seasonGames||82)-sch.length)+' after NBA Cup group play.</span>':'')+'</div>';
-  h += '<div class="panel"><div class="scroll"><table><thead><tr><th class="rk">#</th><th class="l">Date</th><th class="l">Opponent</th><th class="l">Result or tip time</th><th data-d="Jazz record after this game">Record</th><th class="l">Location</th><th class="l">TV</th></tr></thead><tbody>'+shown.join('')+'</tbody></table></div>'
+  h += '<div class="lgd"><span>'+played+' played, '+(sch.length-played)+' to go.</span><span><b style="background:var(--b);height:3px;vertical-align:3px"></b>Next game</span>'+'</div>';
+  h += '<div class="panel"><div class="scroll"><table><thead><tr><th class="rk">#</th><th class="l">Date</th><th class="l">Opponent</th><th class="l">Result or tip time</th><th data-d="Jazz record after this game">Record</th><th class="l">Location</th></tr></thead><tbody>'+shown.join('')+'</tbody></table></div>'
     + (rows.length > 20 ? '<button class="more" data-sched="1">'+(state.schedAll ? 'Show only the first 20 games' : 'Show all '+rows.length+' games')+'</button>' : '') + '</div>';
   $('#ovSched').innerHTML = h;
 }
@@ -514,11 +515,11 @@ const place = g => { const v = g.venue||'', c = g.city||''; return c && !v.inclu
 function nextGames(X){
   const U = (D.schedule ? D.schedule.filter(g => g.state!=='final').map(g => Object.assign({}, g, {live: g.state==='live'})) : (D.upcoming||[])).slice(0,10);
   if(!U.length) return '<div class="empty">No upcoming games in the schedule.</div>';
-  return '<table><thead><tr><th class="l">Date</th><th class="l">Time</th><th class="l">Opponent</th><th data-d="Opponent\'s record this season">Opp. record</th><th class="l">Location</th><th class="l">TV</th></tr></thead><tbody>'
+  return '<table><thead><tr><th class="l">Date</th><th class="l">Time</th><th class="l">Opponent</th><th data-d="Opponent\'s record this season">Opp. record</th><th class="l">Location</th></tr></thead><tbody>'
     + U.map(u => { const t = X.byAb[u.opp];
       return '<tr><td class="l">'+esc(fDay(u.date))+'</td><td class="l">'+(u.live?'<span class="live">Live now</span>':esc(fTime(u.date)))+'</td>'
         + '<td class="l"><span class="ha'+(u.home?' h':'')+'">'+(u.home?'vs':'@')+'</span> <span class="team"><span class="dot" style="background:'+esc(t?t.color:'#999')+'"></span>'+esc(u.oppName||u.opp)+'</span></td>'
-        + '<td class="num">'+(t?t.w+'-'+t.l:'–')+'</td><td class="l">'+esc((u.home?'Home':'Away')+(place(u)?', '+place(u):''))+'</td><td class="l note">'+esc((u.tv||[]).join(', ')||'–')+'</td></tr>'; }).join('')
+        + '<td class="num">'+(t?t.w+'-'+t.l:'–')+'</td><td class="l">'+esc((u.home?'Home':'Away')+(place(u)?', '+place(u):''))+'</td></tr>'; }).join('')
     + '</tbody></table>';
 }
 function marginChart(G){
@@ -954,7 +955,7 @@ document.addEventListener('change', e => {
 });
 
 const fTS = s => new Date(s).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
-$('#asof').textContent = (D.sample ? 'Sample data' : 'Updated '+(D.updatedAt ? fTS(D.updatedAt) : D.generated));
+$('#asof').textContent = D.sample ? 'Sample data' : 'Last updated: '+(D.updatedAt ? fTS(D.updatedAt) : D.generated);
 if(D.sample) $('#banner').innerHTML = '<div class="banner"><b>Sample data.</b> Every number and Jazz player name on this page is simulated so you can try each feature. Run <code>python fetch_jazz.py</code> on your computer to load the real seasons.</div>';
 $('#foot').innerHTML = D.sample ? 'Simulated sample seasons for layout testing. Not real NBA results.' : 'Box scores and play-by-play from ESPN (regular season only); every rating, lineup, and model on this page is computed from them. Updated '+esc(D.updatedAt ? fTS(D.updatedAt) : D.generated)+'. Not affiliated with or endorsed by the NBA, ESPN, or the Utah Jazz.';
 renderAll();
