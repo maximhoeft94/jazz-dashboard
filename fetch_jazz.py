@@ -355,6 +355,7 @@ def build_season(season, recs, roster_info, log):
     if not recs:
         return None
     T, players, jazz, games, shots_all, stints = {}, {}, {}, [], [], []
+    boxes = {}  # Jazz game id -> [[id, min, pts, fgm, fga, fg3m, fg3a, ftm, fta, reb, ast, tov, stl, blk, pf, pm], ...]
     for g in sorted(recs, key=lambda r: (r["d"], r["id"])):
         if len(g["teams"]) != 2:
             continue
@@ -394,6 +395,8 @@ def build_season(season, recs, roster_info, log):
             games.append(dict(id=g["id"], d=g["d"], opp=g["away"] if home else g["home"], home=home,
                               pts=g["hs"] if home else g["as_"], opts=g["as_"] if home else g["hs"]))
             stints += [s + [g["id"]] for s in g.get("stints", [])]
+            boxes[g["id"]] = [[r[0], r[5], r[6], r[7], r[8], r[9], r[10], r[11], r[12], r[13], r[14], r[15], r[16], r[17], r[20], r[21]]
+                              for r in g["players"].get(JAZZ, [])]
         shots_all += [s + [g["d"]] for s in g["shots"]]
 
     teams = []
@@ -496,7 +499,7 @@ def build_season(season, recs, roster_info, log):
 
     return dict(label=season, teams=teams, games=games, players=league, jazz=jz,
                 names={p["id"]: p["name"] for p in jz}, roster={p["id"]: dict(pos=p.get("pos", ""), num=p.get("num", "")) for p in jz},
-                lineups={"5": lineup_rows(L5), "2": lineup_rows(L2)}, onoff=onoff,
+                lineups={"5": lineup_rows(L5), "2": lineup_rows(L2)}, onoff=onoff, boxes=boxes,
                 shots=dict(cols=["p", "x", "y", "m", "zb", "za", "zr", "three", "d"], zb=zb, za=za, zr=zr, rows=rows), zoneAvg=lavg)
 
 

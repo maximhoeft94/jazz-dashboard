@@ -17,6 +17,7 @@ A single-page analytics dashboard for the Utah Jazz: team stats against the rest
 The current Jazz season, split into dashboards (tabs), under a header with the record, net rating, offense, defense, and pace:
 
 - **Team Performance (Overview):** the record with home/road, last 10, and streak; the next 10 games with tip time (Mountain), opponent and their record, arena, and TV; and a point-differential bar for every game played
+- **Player Performance:** pick a player and a game (or the whole season) to see a zone shot chart in 11 zones colored by FG%, plus that game's scoring line, shooting splits, and a zone-by-zone breakdown
 - **Jazz vs. League:** 22 team stats with the league average, the Jazz's rank, and a strip plot of all 30 teams; Dean Oliver's four factors; and splits (home/road, vs. .500 teams, close games, by month)
 - **League Table:** all 30 teams (traditional, advanced, four factors), sortable, with a league-average row
 - **Players:** per game, per 36, totals, advanced, and shooting views, counting Jazz games only
