@@ -107,6 +107,8 @@ hr.seg{border:0;border-top:1px solid #c9c5d6;margin:34px 0 14px}
 .ldr tr.first td{background:color-mix(in srgb,var(--jazz) 8%,var(--panel))}
 .ldr tr.first td.big{color:var(--jazz)}
 .ldr .note{font-size:12px;margin-top:1px}
+tr.trow{cursor:pointer}
+tr.trow:hover td{background:color-mix(in srgb,var(--gold) 12%,var(--panel))}
 .appx{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
 .more{display:block;width:100%;background:var(--soft);border:0;border-top:1px solid var(--line);padding:10px;font-weight:600;color:var(--jazz);border-radius:0 0 8px 8px}
 .more:hover{background:color-mix(in srgb,var(--jazz) 8%,var(--soft))}
@@ -348,8 +350,8 @@ if(!D){ document.body.innerHTML = '<div class="wrap"><div class="empty">No data 
 const DASH_IDS = ['overview','playerPerf','lineupPerf','lineups','onoff','shots','models'];
 const state = {
   season: D.current || D.order[0], dash: (DASH_IDS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview'), ins:'league', lt:'adv', pm:'pg', lu:'5', luMin:null,
-  scP:'ALL', scMode:'hex', mdl:'pyth', schedAll:false, ppPlayer:null, ppGame:null, pA:null, pB:null,
-  sort:{ ro:{k:'ppg',d:-1}, lu:{k:'min',d:-1} }
+  scP:'ALL', scMode:'hex', mdl:'pyth', schedAll:false, trAll:false, ppPlayer:null, ppGame:null, pA:null, pB:null,
+  sort:{ ro:{k:'ppg',d:-1}, lu:{k:'min',d:-1}, tr:{k:'net',d:-1} }
 };
 
 /* ---------- per-season model (memoized) ---------- */
@@ -716,7 +718,52 @@ function renderLineupPerf(){
     + '<div class="ppc"><div class="cap">Zone breakdown</div>'
     + (zrows.length ? zrows.map(z => '<div class="ppr">'+esc(z)+'<b>'+Z[z].m+'/'+Z[z].a+'<small>'+pct(Z[z].m,Z[z].a)+'</small></b></div>').join('') : '<div class="note" style="padding:10px 0">No shots.</div>') + '</div>';
   h += '<div class="panel pp"><div class="ppcourt">'+zoneCourt(noData ? {} : Z, noData)+'</div><div class="ppside">'+side+'</div></div>';
+  h += '<div id="lpTable"></div>';
   $('#lineupPerf').innerHTML = h;
+  renderTrioTable();
+}
+
+/* top 3-man lineups table (follows the Game filter; click a row to chart that trio) */
+function trioRows(){
+  const X = S(), raw = X.raw, F = {}; (raw.stintFields||[]).forEach((f,i) => F[f] = i);
+  const acc = {};
+  raw.stints.forEach(r => {
+    if(state.lpGame !== 'ALL' && r[0] !== state.lpGame) return;
+    const f = r[1].slice().sort((a,b)=>a-b);
+    for(let a=0;a<f.length;a++) for(let b=a+1;b<f.length;b++) for(let c=b+1;c<f.length;c++){
+      const k = f[a]+','+f[b]+','+f[c], q = acc[k] || (acc[k] = {sec:0, jp:0, op:0, j:new Array(12).fill(0), o:new Array(12).fill(0), g:new Set()});
+      q.sec += r[2]; q.jp += r[3]; q.op += r[4]; q.g.add(r[0]); r[5].forEach((v,i) => q.j[i] += v); r[6].forEach((v,i) => q.o[i] += v);
+    }
+  });
+  const nm = i => { const id = String(raw.pids[i]), p = X.jazz.find(p => String(p.id)===id); return p ? lastFirst(p.name).last : id; };
+  return Object.keys(acc).map(k => {
+    const q = acc[k], j = n => q.j[F[n]]||0, o = n => q.o[F[n]]||0;
+    const poss = 0.5*((j('fga') + 0.44*j('fta') - j('oreb') + j('tov')) + (o('fga') + 0.44*o('fta') - o('oreb') + o('tov')));
+    const ortg = poss>0 ? 100*q.jp/poss : null, drtg = poss>0 ? 100*q.op/poss : null;
+    const idx = k.split(',').map(Number);
+    return {key: idx.map(i => String(raw.pids[i])).join(','), names: idx.map(nm).sort().join(', '), gp: q.g.size, min: q.sec/60, poss: Math.round(poss),
+      pts: q.jp, ortg, drtg, net: ok(ortg) ? ortg-drtg : null, fgp: j('fga') ? 100*j('fgm')/j('fga') : null, fg3p: j('fg3a') ? 100*j('fg3m')/j('fg3a') : null, pm: q.jp - q.op};
+  });
+}
+const TRC = [
+  {k:'names',t:'Lineup',l:1,f:r=>'<b>'+esc(r.names)+'</b>',sv:r=>r.names},
+  {k:'gp',t:'GP',d:'Games with minutes together'},{k:'min',t:'MIN',f:r=>num(r.min,1),d:'Minutes on the floor together'},
+  {k:'poss',t:'POSS',d:'Possessions played together'},{k:'pts',t:'PTS',d:'Jazz points while together'},
+  {k:'ortg',t:'ORtg',f:r=>num(r.ortg,1),d:'Points scored per 100 possessions'},{k:'drtg',t:'DRtg',f:r=>num(r.drtg,1),d:'Points allowed per 100 possessions'},
+  {k:'net',t:'Net',f:r=>'<span class="'+(r.net>0?'W':r.net<0?'L':'')+'">'+sgn(r.net)+'</span>',d:'Offensive minus defensive rating'},
+  {k:'fgp',t:'FG%',f:r=>num(r.fgp,1),d:'Jazz field goal % while together'},{k:'fg3p',t:'3P%',f:r=>num(r.fg3p,1),d:'Jazz 3-point % while together'},
+  {k:'pm',t:'+/-',f:r=>sgn(r.pm,0),d:'Points scored minus allowed while together'}
+];
+function renderTrioTable(){
+  const el = $('#lpTable'); if(!el) return;
+  const X = S(), minMin = state.lpGame==='ALL' ? Math.max(10, Math.round(X.J.gp*1.5)) : 3;
+  const all = trioRows().filter(r => r.min >= minMin);
+  const rows = sortRows(all, 'tr', TRC), shown = state.trAll ? rows : rows.slice(0,15), cur = state.lp ? state.lp.map(String).slice().sort().join(',') : '';
+  el.innerHTML = '<div class="panel scroll" style="margin-top:14px"><div class="pad" style="padding-bottom:4px"><h3 style="font-family:var(--font-d);font-weight:600;font-size:21px;margin:0">Top 3-man lineups</h3><div class="note">'+minMin+'+ minutes together. Click a row to chart it.</div></div>'
+    + (rows.length ? '<table>'+thead('tr', TRC, '<th class="rk">#</th>')+'<tbody>'
+      + shown.map((r,i) => '<tr class="trow'+(r.key.split(',').sort().join(',')===cur?' me':'')+'" data-trio="'+esc(r.key)+'"><td class="rk num">'+(i+1)+'</td>'+TRC.map(c=>cell(c,r,'tr')).join('')+'</tr>').join('')
+      + '</tbody></table>' : '<div class="empty">No three-man group has '+minMin+' minutes together yet.</div>')
+    + (rows.length > 15 ? '<button class="more" data-trall="1">'+(state.trAll ? 'Show only the top 15' : 'Show all '+rows.length+' lineups')+'</button>' : '') + '</div>';
 }
 
 /* ---------- lineups ---------- */
@@ -976,12 +1023,14 @@ addEventListener('scroll', hideTip, {passive:true});
 
 /* ---------- wiring ---------- */
 function renderAll(){ renderTabs(); renderHero(); renderOverview(); renderPlayerPerf(); renderLineupPerf(); renderLineups(); renderOnOff(); renderShots(); renderModels(); }
-const RENDER = {ro:renderRoster, lu:renderLineups};
+const RENDER = {ro:renderRoster, lu:renderLineups, tr:renderTrioTable};
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-dash],[data-sched],[data-lu],[data-lumin],[data-sc],[data-mdl],[data-ts]');
+  const t = e.target.closest('[data-trio],[data-trall],[data-dash],[data-sched],[data-lu],[data-lumin],[data-sc],[data-mdl],[data-ts]');
   if(!t) return;
   const d = t.dataset;
-  if(d.sched){ state.schedAll = !state.schedAll; renderSchedule(); if(!state.schedAll) $('#ovSched').scrollIntoView({block:'start'}); }
+  if(d.trio){ state.lp = d.trio.split(','); renderLineupPerf(); $('#lineupPerf').scrollIntoView({block:'start'}); }
+  else if(d.trall){ state.trAll = !state.trAll; renderTrioTable(); }
+  else if(d.sched){ state.schedAll = !state.schedAll; renderSchedule(); if(!state.schedAll) $('#ovSched').scrollIntoView({block:'start'}); }
   else if(d.dash){ state.dash = d.dash; hideTip(); renderTabs(); history.replaceState(null,'','#'+d.dash); const tb = $('#tabs'); if(tb.getBoundingClientRect().top < 0 || scrollY > tb.offsetTop) scrollTo({top: tb.offsetTop, behavior:'instant'}); }
   else if(d.lu){ state.lu = d.lu; state.luMin = null; renderLineups(); }
   else if(d.lumin!=null){ state.luMin = +d.lumin; renderLineups(); }
