@@ -85,7 +85,7 @@ section[hidden]{display:none}
 @media (max-width:600px){.sbar{grid-template-columns:78px minmax(0,1fr) 92px;gap:8px}.sbar .sv{flex-direction:column;gap:0;align-items:flex-end}.sbar .sl{font-size:12px}.gsh h3{font-size:24px}}
 .pp{display:grid;grid-template-columns:minmax(0,2.1fr) minmax(270px,1fr);gap:0;align-items:stretch;overflow:hidden}
 .ppcourt{padding:16px;border-right:1px solid var(--line);display:flex;align-items:flex-start;justify-content:center}
-#playerPerf .ppcourt{align-items:center}
+#playerPerf .ppcourt, #lineupPerf .ppcourt{align-items:center}
 .ppcourt svg{width:100%;height:auto;display:block}
 .ppr.zero{color:#a49fb5}
 .ppr.zero b{color:#b7b2c6}
@@ -121,16 +121,16 @@ section[hidden]{display:none}
 .ppr b.pts{color:#b4692a}
 .ppmini{display:flex;justify-content:space-between;gap:8px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-top:10px}
 .ppmini b{color:var(--ink);font-size:13px;margin-left:3px}
-#playerPerf .ppside{--pk:1}
-#playerPerf .ppc{padding:calc(16px*var(--pk)) 18px}
-#playerPerf .ppc .cap{font-size:calc(15px*var(--pk));padding-bottom:calc(8px*var(--pk))}
-#playerPerf .ppr{font-size:calc(18px*var(--pk));padding:calc(10px*var(--pk)) 0}
-#playerPerf .ppr b{font-size:calc(36px*var(--pk));line-height:1.05}
-#playerPerf .ppr b small{font-size:calc(17px*var(--pk))}
-#playerPerf .ppmini{font-size:15px;flex-wrap:wrap}
-#playerPerf .ppmini b{font-size:20px;margin-left:4px}
-#playerPerf .pp{grid-template-columns:minmax(0,1.85fr) minmax(330px,1fr)}
-@media (max-width:900px){#playerPerf .pp{grid-template-columns:1fr}}
+#playerPerf .ppside, #lineupPerf .ppside{--pk:1}
+#playerPerf .ppc, #lineupPerf .ppc{padding:calc(16px*var(--pk)) 18px}
+#playerPerf .ppc .cap, #lineupPerf .ppc .cap{font-size:calc(15px*var(--pk));padding-bottom:calc(8px*var(--pk))}
+#playerPerf .ppr, #lineupPerf .ppr{font-size:calc(18px*var(--pk));padding:calc(10px*var(--pk)) 0}
+#playerPerf .ppr b, #lineupPerf .ppr b{font-size:calc(36px*var(--pk));line-height:1.05}
+#playerPerf .ppr b small, #lineupPerf .ppr b small{font-size:calc(17px*var(--pk))}
+#playerPerf .ppmini, #lineupPerf .ppmini{font-size:15px;flex-wrap:wrap}
+#playerPerf .ppmini b, #lineupPerf .ppmini b{font-size:20px;margin-left:4px}
+#playerPerf .pp, #lineupPerf .pp{grid-template-columns:minmax(0,1.85fr) minmax(330px,1fr)}
+@media (max-width:900px){#playerPerf .pp,#lineupPerf .pp{grid-template-columns:1fr}}
 hr.seg{border:0;border-top:1px solid #c9c5d6;margin:34px 0 14px}
 .ldrs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 @media (max-width:820px){.ldrs{grid-template-columns:1fr}}
@@ -613,7 +613,9 @@ function zoneList(Z){
 /* Player Performance: the court and the stats panel share one height. The panel always lists the same rows;
    its text scales (down to 60%) until it is no taller than the court can be, then the court is sized to match it. */
 function fitCourts(){
-  const pp = document.querySelector('#playerPerf:not([hidden]) .pp'); if(!pp) return;
+  document.querySelectorAll('#playerPerf:not([hidden]) .pp, #lineupPerf:not([hidden]) .pp').forEach(fitCourt);
+}
+function fitCourt(pp){
   const court = pp.querySelector('.ppcourt'), side = pp.querySelector('.ppside'), svg = court && court.querySelector('svg');
   if(!svg) return;
   pp.style.removeProperty('grid-template-columns'); side.style.removeProperty('--pk');
@@ -800,14 +802,14 @@ function renderLineupPerf(){
     + (ok(ortg) && !noData ? '<br>Net rating <span class="'+(ortg-drtg>0?'W':'L')+'">'+sgn(ortg-drtg)+'</span> ('+num(ortg,1)+' off / '+num(drtg,1)+' def)' : '');
   const pct = (m,a) => a ? Math.round(100*m/a)+'%' : '0%';
   const fgm = g('fgm'), fga = g('fga'), m3 = g('fg3m'), a3 = g('fg3a'), ftm = g('ftm'), fta = g('fta'), pm = T.jp - T.op;
-  const side = '<div class="ppc namecard"><div class="ppname" style="font-size:26px;line-height:1.08">'+names.map(esc).join('<br>')+'</div><div class="ppmeta">'+meta+'</div></div>'
-    + '<div class="ppc"><div class="cap">Field goals, all Jazz shots while together</div>'
+  const side = '<div class="ppc"><div class="cap">Field goals</div>'
+
     + '<div class="ppr">Total pts<b class="pts">'+T.jp+'</b></div>'
     + '<div class="ppr">Total FG<b>'+fgm+'/'+fga+'<small>'+pct(fgm,fga)+'</small></b></div>'
     + '<div class="ppr">2-pointers<b>'+(fgm-m3)+'/'+(fga-a3)+'<small>'+pct(fgm-m3,fga-a3)+'</small></b></div>'
     + '<div class="ppr">3-pointers<b>'+m3+'/'+a3+'<small>'+pct(m3,a3)+'</small></b></div>'
     + '<div class="ppr">Free throws<b>'+ftm+'/'+fta+'<small>'+pct(ftm,fta)+'</small></b></div>'
-    + '<div class="ppmini"><span>Reb<b>'+(g('oreb')+g('dreb'))+'</b></span><span>Ast<b>'+g('ast')+'</b></span><span>Stl<b>'+g('stl')+'</b></span><span>Blk<b>'+g('blk')+'</b></span><span>+/-<b class="'+(pm>0?'W':pm<0?'L':'')+'">'+sgn(pm,0)+'</b></span></div></div>'
+    + '</div>'
     + '<div class="ppc"><div class="cap">Zone breakdown</div>'
     + zoneList(Z) + '</div>';
   h += '<div class="panel pp"><div class="ppcourt">'+zoneCourt(noData ? {} : Z, noData)+'</div><div class="ppside">'+side+'</div></div>';
