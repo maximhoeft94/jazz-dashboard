@@ -635,10 +635,13 @@ function renderPlayerPerf(){
   if(!Object.keys(boxes).length){ $('#playerPerf').innerHTML = h + '<div class="panel empty">Game-by-game data arrives with the next refresh.</div>'; return; }
   const gById = {}; X.games.forEach(g => gById[g.id] = g);
   const players = X.jazz.filter(p => (p.min||0) > 0).sort((a,b) => b.min - a.min);
-  if(!players.find(p => String(p.id)===String(state.ppPlayer))) state.ppPlayer = String(players[0].id);
+  if(!players.find(p => String(p.id)===String(state.ppPlayer))){  // preset: Darryn Peterson, all games
+    const preset = players.find(p => /darryn peterson/i.test(p.name)) || players[0];
+    state.ppPlayer = String(preset.id);
+  }
   const P = players.find(p => String(p.id)===String(state.ppPlayer));
   const played = X.games.filter(g => (boxes[g.id]||[]).some(r => String(r[0])===String(P.id) && r[1] > 0)).slice().reverse();
-  if(state.ppGame!=='ALL' && !played.find(g => g.id===state.ppGame)) state.ppGame = played.length ? played[0].id : 'ALL';
+  if(state.ppGame!=='ALL' && !played.find(g => g.id===state.ppGame)) state.ppGame = 'ALL';
   const games = state.ppGame==='ALL' ? played : played.filter(g => g.id===state.ppGame);
   // box totals for the selection
   const T = {pts:0,fgm:0,fga:0,fg3m:0,fg3a:0,ftm:0,fta:0,reb:0,ast:0,stl:0,blk:0,pm:0};
