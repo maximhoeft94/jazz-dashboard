@@ -62,20 +62,23 @@ section[hidden]{display:none}
 .tab:hover{color:var(--ink)}
 .tab.on{color:var(--ink);border-bottom-color:var(--b)}
 /* player performance */
-.gstat{margin-bottom:14px}
+.gstat{margin-bottom:14px;padding:20px 24px}
 .gsh{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px}
-.gsh h3{font-family:var(--font-d);font-weight:600;font-size:21px;margin:0}
-.sbar{display:grid;grid-template-columns:110px minmax(0,1fr) 190px;gap:14px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}
+.gsh h3{font-family:var(--font-d);font-weight:600;font-size:31px;margin:0}
+.sbar{display:grid;grid-template-columns:165px minmax(0,1fr) 290px;gap:20px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
 .sbar:last-child{border-bottom:0}
-.sbar .sl{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-.strk{position:relative;height:18px;background:var(--soft);border-radius:4px;overflow:visible}
-.strk i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--jazz)}
+.sbar .sl{font-size:18px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.strk{position:relative;height:27px;background:var(--soft);border-radius:6px;overflow:visible}
+.strk i{position:absolute;left:0;top:0;bottom:0;border-radius:6px;background:var(--jazz)}
 .strk i.neg{background:#c8202f;opacity:.75}
-.strk em{position:absolute;top:-4px;bottom:-4px;width:3px;margin-left:-1.5px;background:var(--gold);border-radius:1px}
+.strk em{position:absolute;top:-6px;bottom:-6px;width:4px;margin-left:-2px;background:var(--gold);border-radius:1px}
 .sbar .sv{display:flex;align-items:baseline;gap:10px}
-.sbar .sv b{font-family:var(--font-d);font-size:26px;font-weight:700;min-width:44px;text-align:right}
-.sbar .sv small{font-size:12px;color:var(--muted)}
-@media (max-width:700px){.sbar{grid-template-columns:84px minmax(0,1fr) 120px;gap:8px}.sbar .sv{flex-direction:column;gap:0}}
+.sbar .sv b{font-family:var(--font-d);font-size:39px;font-weight:700;min-width:66px;text-align:right;line-height:1}
+.sbar .sv small{font-size:17px;color:var(--muted)}
+.sbar .sv small.W{color:var(--good);font-weight:600}
+.sbar .sv small.L{color:var(--bad);font-weight:600}
+@media (max-width:900px){.sbar{grid-template-columns:110px minmax(0,1fr) 170px;gap:12px}.sbar .sl{font-size:14px}.sbar .sv b{font-size:30px}.sbar .sv small{font-size:13px}}
+@media (max-width:600px){.sbar{grid-template-columns:78px minmax(0,1fr) 92px;gap:8px}.sbar .sv{flex-direction:column;gap:0;align-items:flex-end}.sbar .sl{font-size:12px}.gsh h3{font-size:24px}}
 .pp{display:grid;grid-template-columns:minmax(0,2.1fr) minmax(270px,1fr);gap:0;align-items:stretch;overflow:hidden}
 .ppcourt{padding:16px;border-right:1px solid var(--line);display:flex;align-items:center}
 .ppside{display:flex;flex-direction:column}
@@ -572,10 +575,7 @@ function statChart(P, played, games, boxes){
       + '<i class="'+(dir<0?'neg':'')+'" style="width:'+w+'%"></i>'+(all?'':'<em style="left:'+t+'%"></em>')+'</span>'
       + '<span class="sv"><b>'+(all?num(avg,1):v)+'</b><small class="'+tone+'">'+sub+'</small></span></div>';
   }).join('');
-  return '<div class="panel pad gstat"><div class="gsh"><h3>'+(all ? 'Season averages' : 'Game stats')+'</h3>'
-    + (all ? '<span class="note">Per game across '+n+' games. Bars run to his season high.</span>'
-           : '<span class="lgd" style="margin:0"><span><b style="background:var(--jazz)"></b>This game</span><span><b style="background:var(--gold);width:3px;border-radius:0"></b>Season average</span><span>Bars run to his season high.</span></span>')
-    + '</div>' + rows + '</div>';
+  return '<div class="panel pad gstat"><div class="gsh"><h3>'+(all ? 'Season averages' : 'Game stats')+'</h3></div>' + rows + '</div>';
 }
 function renderPlayerPerf(){
   const X = S(), raw = X.raw, boxes = raw.boxes || {};
