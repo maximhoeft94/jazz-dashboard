@@ -71,6 +71,10 @@ section[hidden]{display:none}
 .strk{position:relative;height:27px;background:var(--soft);border-radius:6px;overflow:visible}
 .strk i{position:absolute;left:0;top:0;bottom:0;border-radius:6px;background:var(--jazz)}
 .strk i.neg{background:#c8202f;opacity:.75}
+.strk i.pos{background:var(--good);opacity:.8}
+.pmtrk::after{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:#8d87a3}
+.sbar .sv b.W{color:var(--good)}
+.sbar .sv b.L{color:var(--bad)}
 .strk em{position:absolute;top:-6px;bottom:-6px;width:4px;margin-left:-2px;background:var(--gold);border-radius:1px}
 .sbar .sv{display:flex;align-items:baseline;gap:10px}
 .sbar .sv b{font-family:var(--font-d);font-size:39px;font-weight:700;min-width:66px;text-align:right;line-height:1}
@@ -582,7 +586,16 @@ function statChart(P, played, games, boxes){
     return '<div class="sbar"><span class="sl">'+lab+'</span><span class="strk rpt" data-n="'+esc(lab)+'" data-c="var(--jazz)" data-l="'+(all?'Per game::'+num(avg,1):'This game::'+v+'||Season average::'+num(avg,1))+'||Season high::'+hi+'">'
       + '<i class="'+(dir<0?'neg':'')+'" style="width:'+w+'%"></i>'+(all?'':'<em style="left:'+t+'%"></em>')+'</span>'
       + '<span class="sv"><b>'+(all?num(avg,1):v)+'</b><small class="'+tone+'">'+sub+'</small></span></div>';
-  }).join('');
+  }).join('') + (() => {
+    const vals = lines.map(r => r[15]), avg = vals.reduce((a,b)=>a+b,0)/n, best = Math.max.apply(null, vals), worst = Math.min.apply(null, vals);
+    const v = all ? avg : (sel ? sel[15] : 0), span = Math.max(1, Math.abs(best), Math.abs(worst), Math.abs(v));
+    const left = 50 + Math.min(v,0)/span*50, w = Math.abs(v)/span*50, t = 50 + avg/span*50, diff = v - avg;
+    const tone = all ? '' : (Math.abs(diff) < 0.05 ? '' : (diff > 0 ? 'W' : 'L'));
+    const sub = all ? 'Best '+sgn(best,0)+', worst '+sgn(worst,0) : (Math.abs(diff) < 0.05 ? 'Same as avg' : sgn(diff)+' vs avg '+sgn(avg));
+    return '<div class="sbar"><span class="sl">Plus/minus</span><span class="strk pmtrk rpt" data-n="Plus/minus" data-c="var(--jazz)" data-l="'+(all?'Per game::'+sgn(avg):'This game::'+sgn(v,0)+'||Season average::'+sgn(avg))+'||Best::'+sgn(best,0)+'||Worst::'+sgn(worst,0)+'">'
+      + '<i class="'+(v<0?'neg':'pos')+'" style="left:'+left.toFixed(1)+'%;width:'+w.toFixed(1)+'%"></i>'+(all?'':'<em style="left:'+t.toFixed(1)+'%"></em>')+'</span>'
+      + '<span class="sv"><b class="'+(v>0?'W':v<0?'L':'')+'">'+(all?sgn(avg):sgn(v,0))+'</b><small class="'+tone+'">'+sub+'</small></span></div>';
+  })();
   return '<div class="panel pad gstat"><div class="gsh"><h3>'+(all ? 'Season averages' : 'Game stats')+'</h3></div>' + rows + '</div>';
 }
 function renderPlayerPerf(){
@@ -619,7 +632,7 @@ function renderPlayerPerf(){
     + '<div class="ppr">2-pointers<b>'+(T.fgm-T.fg3m)+'/'+(T.fga-T.fg3a)+'<small>'+pct(T.fgm-T.fg3m,T.fga-T.fg3a)+'</small></b></div>'
     + '<div class="ppr">3-pointers<b>'+T.fg3m+'/'+T.fg3a+'<small>'+pct(T.fg3m,T.fg3a)+'</small></b></div>'
     + '<div class="ppr">Free throws<b>'+T.ftm+'/'+T.fta+'<small>'+pct(T.ftm,T.fta)+'</small></b></div>'
-    + '<div class="ppmini"><span>Reb<b>'+T.reb+'</b></span><span>Ast<b>'+T.ast+'</b></span><span>Stl<b>'+T.stl+'</b></span><span>Blk<b>'+T.blk+'</b></span><span>+/-<b class="'+(T.pm>0?'W':T.pm<0?'L':'')+'">'+sgn(T.pm,0)+'</b></span></div></div>'
+    + '</div>'
     + '<div class="ppc"><div class="cap">Zone breakdown</div>'
     + (zrows.length ? zrows.map(z => '<div class="ppr">'+esc(z)+'<b>'+Z[z].m+'/'+Z[z].a+'<small>'+pct(Z[z].m,Z[z].a)+'</small></b></div>').join('') : '<div class="note" style="padding:10px 0">No shots with a recorded location.</div>') + '</div>';
   h += '<div class="panel pp"><div class="ppcourt">'+zoneCourt(Z)+'</div><div class="ppside">'+side+'</div></div>';
