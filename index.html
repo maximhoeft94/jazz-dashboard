@@ -131,6 +131,51 @@ section[hidden]{display:none}
 #playerPerf .ppmini b, #lineupPerf .ppmini b{font-size:20px;margin-left:4px}
 #playerPerf .pp, #lineupPerf .pp{grid-template-columns:minmax(0,1.85fr) minmax(330px,1fr)}
 @media (max-width:900px){#playerPerf .pp,#lineupPerf .pp{grid-template-columns:1fr}}
+/* player v. player */
+.pvsel{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:14px;align-items:end;margin-bottom:14px}
+.pvside{display:flex;gap:10px;padding:12px 14px;border-radius:8px;background:var(--panel);border:1px solid var(--line)}
+.pvside.a{border-top:4px solid var(--a)}.pvside.b{border-top:4px solid var(--b)}
+.pvside label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);flex:1 1 0;min-width:0}
+.pvside select{flex:none;width:100%;font-size:15px;text-transform:none;letter-spacing:0;font-weight:500}
+.pvvs{font-family:var(--font-d);font-weight:700;font-size:28px;color:var(--muted);padding-bottom:16px}
+.pvcards{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.pvcard{padding:16px 20px}
+.pvcard.a{border-left:6px solid var(--a)}.pvcard.b{border-left:6px solid var(--b)}
+.pvnm{font-family:var(--font-d);font-weight:700;font-size:32px;line-height:1;text-transform:uppercase}
+.pvcard.a .pvnm{color:var(--a)}.pvcard.b .pvnm{color:var(--b)}
+.pvmeta{font-size:13px;color:var(--muted);margin:6px 0 12px}
+.pvline{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.pvline b{display:block;font-family:var(--font-d);font-size:34px;line-height:1}
+.pvline span{font-size:12px;font-weight:600;letter-spacing:.06em;color:var(--muted)}
+.pvbox{margin-bottom:14px}
+.pvscore{font-size:15px}.pvscore b{font-family:var(--font-d);font-size:22px}
+.ca{color:var(--a)}.cb{color:var(--b)}
+.h2r{display:grid;grid-template-columns:80px minmax(0,1fr) 150px minmax(0,1fr) 80px;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.h2r:last-child{border-bottom:0}
+.h2l{text-align:center;font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.h2t{display:flex;height:22px;background:var(--soft);border-radius:5px;overflow:hidden}
+.h2t.a{justify-content:flex-end}
+.h2t i{display:block;height:100%}
+.h2t.a i{background:var(--a)}.h2t.b i{background:var(--b)}
+.h2t i.neg{opacity:.45}
+.h2v{font-family:var(--font-d);font-size:24px;font-weight:600;color:var(--muted)}
+.h2v.a{text-align:right}
+.h2v.lead{font-weight:700}.h2v.a.lead{color:var(--a)}.h2v.b.lead{color:var(--b)}
+.pvgrid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:14px}
+.pvstack{display:grid;grid-template-columns:110px minmax(0,1fr);gap:10px;align-items:center;margin:8px 0}
+.pvsn{font-weight:600}
+.pvbar{display:flex;height:34px;border-radius:6px;overflow:hidden;background:var(--soft)}
+.pvbar i{display:flex;align-items:center;justify-content:center;font-style:normal;font-size:13px;font-weight:700;color:#fff;cursor:pointer}
+.pvzt{margin-top:8px}.pvzt td,.pvzt th{padding:7px 8px}
+.pvzt td.lead{font-weight:700}
+.pvcourts{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pvct{font-family:var(--font-d);font-weight:700;font-size:24px;text-transform:uppercase;margin-bottom:8px}
+@media (max-width:900px){
+  .pvsel{grid-template-columns:1fr}.pvvs{display:none}
+  .pvcards,.pvgrid,.pvcourts{grid-template-columns:1fr}
+  .h2r{grid-template-columns:54px minmax(0,1fr) 84px minmax(0,1fr) 54px;gap:6px}.h2v{font-size:18px}.h2l{font-size:11px}
+  .pvside{flex-direction:column}
+}
 hr.seg{border:0;border-top:1px solid #c9c5d6;margin:34px 0 14px}
 .ldrs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 @media (max-width:820px){.ldrs{grid-template-columns:1fr}}
@@ -355,6 +400,7 @@ footer{margin-top:40px;font-size:13px;color:var(--muted);border-top:3px solid va
   <section id="overview"></section>
   <section id="playerPerf"></section>
   <section id="lineupPerf"></section>
+  <section id="pvp"></section>
   <section id="lineups"></section>
   <section id="onoff"></section>
   <section id="shots"></section>
@@ -381,10 +427,10 @@ const mean = xs => { xs = xs.filter(ok); return xs.length ? xs.reduce((s,x)=>s+x
 if(!D){ document.body.innerHTML = '<div class="wrap"><div class="empty">No data embedded. Run <code>python fetch_jazz.py</code> to load the seasons.</div></div>'; return; }
 
 /* ---------- state ---------- */
-const DASH_IDS = ['overview','playerPerf','lineupPerf','lineups','onoff','shots','models'];
+const DASH_IDS = ['overview','playerPerf','lineupPerf','pvp','lineups','onoff','shots','models'];
 const state = {
   season: D.current || D.order[0], dash: (DASH_IDS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview'), ins:'league', lt:'adv', pm:'pg', lu:'5', luMin:null,
-  scP:'ALL', scMode:'hex', mdl:'pyth', schedAll:false, trAll:false, ppPlayer:null, ppGame:null, pA:null, pB:null,
+  scP:'ALL', scMode:'hex', mdl:'pyth', schedAll:false, pvA:null, pvB:null, pvAg:'ALL', pvBg:'ALL', trAll:false, ppPlayer:null, ppGame:null, pA:null, pB:null,
   sort:{ ro:{k:'ppg',d:-1}, lu:{k:'min',d:-1}, tr:{k:'min',d:-1} }
 };
 
@@ -438,7 +484,7 @@ const rkColor = (r,n) => r==null ? 'var(--muted)' : r <= n/3 ? 'var(--good)' : r
 const rkBadge = (r,n,dir) => r==null ? '' : '<span class="rkb" style="background:'+(dir===0?'var(--muted)':rkColor(r,n))+'">'+ord(r)+'</span>';
 
 /* ---------- tabs + hero ---------- */
-const DASH = [['overview','Team Performance (Overview)'],['playerPerf','Player Performance'],['lineupPerf','Lineup Performance'],['lineups','Lineups'],['onoff','On/Off'],['shots','Shot Chart'],['models','Models']];
+const DASH = [['overview','Team Performance (Overview)'],['playerPerf','Player Performance'],['lineupPerf','Lineup Performance'],['pvp','Player v. Player'],['lineups','Lineups'],['onoff','On/Off'],['shots','Shot Chart'],['models','Models']];
 function renderTabs(){
   $('#tabs').innerHTML = DASH.map(([id,lab]) => '<button class="tab'+(state.dash===id?' on':'')+'" role="tab" aria-selected="'+(state.dash===id)+'" aria-controls="'+id+'" data-dash="'+id+'">'+lab+'</button>').join('');
   DASH.forEach(([id]) => { $('#'+id).hidden = state.dash!==id; });
@@ -861,6 +907,108 @@ function renderTrioTable(){
     + (rows.length > 15 ? '<button class="more" data-trall="1">'+(state.trAll ? 'Show only the top 15' : 'Show all '+rows.length+' lineups')+'</button>' : '') + '</div>';
 }
 
+/* ---------- player v. player: two Jazz players, each over the season or one game ---------- */
+const PVP_ZG = [['Paint',['paint']],['Mid-range',['mid-range left','mid-range top','mid-range right','left elbow','right elbow']],['Corner 3',['left corner 3','right corner 3']],['Wing & top 3',['left wing 3','right wing 3','top of key 3']]];
+function pvpData(X, pid, gsel){
+  const raw = X.raw, boxes = raw.boxes || {};
+  const rowOf = g => (boxes[g.id]||[]).find(r => String(r[0])===String(pid));
+  const played = X.games.filter(g => { const r = rowOf(g); return r && r[1] > 0; });
+  const games = gsel==='ALL' ? played : played.filter(g => g.id===gsel);
+  const T = {gp:games.length, min:0, pts:0, fgm:0, fga:0, fg3m:0, fg3a:0, ftm:0, fta:0, reb:0, ast:0, tov:0, stl:0, blk:0, pm:0};
+  games.forEach(g => { const r = rowOf(g);
+    T.min+=r[1]; T.pts+=r[2]; T.fgm+=r[3]; T.fga+=r[4]; T.fg3m+=r[5]; T.fg3a+=r[6]; T.ftm+=r[7]; T.fta+=r[8]; T.reb+=r[9]; T.ast+=r[10]; T.tov+=r[11]; T.stl+=r[12]; T.blk+=r[13]; T.pm+=r[15]; });
+  const n = Math.max(1, T.gp), per = k => T[k]/n;
+  const dates = new Set(games.map(g => g.d.replace(/-/g,'')));
+  const Z = {}; raw.shots.rows.forEach(r => { if(String(r[0])!==String(pid) || !dates.has(String(r[8]))) return;
+    const z = zoneOf({x:r[1], y:r[2], v:r[7]?3:2}); const q = Z[z] || (Z[z] = {m:0,a:0}); q.a++; q.m += r[3]; });
+  const byGame = played.map(g => ({g, pts: rowOf(g)[2]}));
+  return {T, per, played, games, Z, byGame,
+    fgp: T.fga ? 100*T.fgm/T.fga : null, fg3p: T.fg3a ? 100*T.fg3m/T.fg3a : null, ftp: T.fta ? 100*T.ftm/T.fta : null,
+    ts: (T.fga + 0.44*T.fta) ? 100*T.pts/(2*(T.fga + 0.44*T.fta)) : null};
+}
+function renderPvp(){
+  const X = S(), raw = X.raw;
+  let h = '<div class="sh"><h2>Player v. Player</h2></div>';
+  if(!raw.boxes){ $('#pvp').innerHTML = h + '<div class="panel empty">Game-by-game data arrives with the next refresh.</div>'; return; }
+  const players = X.jazz.filter(p => (p.min||0) > 0).sort(byLast);
+  const find = re => players.find(p => re.test(p.name));
+  if(!state.pvA || !players.find(p => String(p.id)===String(state.pvA))) state.pvA = String((find(/darryn peterson/i) || players[0]).id);
+  if(!state.pvB || !players.find(p => String(p.id)===String(state.pvB))) state.pvB = String((find(/keyonte george/i) || players.find(p => String(p.id)!==state.pvA)).id);
+  const PA = players.find(p => String(p.id)===String(state.pvA)), PB = players.find(p => String(p.id)===String(state.pvB));
+  let A = pvpData(X, PA.id, state.pvAg||'ALL'), B = pvpData(X, PB.id, state.pvBg||'ALL');
+  if(state.pvAg && state.pvAg!=='ALL' && !A.played.find(g => g.id===state.pvAg)){ state.pvAg = 'ALL'; A = pvpData(X, PA.id, 'ALL'); }
+  if(state.pvBg && state.pvBg!=='ALL' && !B.played.find(g => g.id===state.pvBg)){ state.pvBg = 'ALL'; B = pvpData(X, PB.id, 'ALL'); }
+  const ag = state.pvAg||'ALL', bg = state.pvBg||'ALL';
+
+  // filters
+  const popt = cur => players.map(p => '<option value="'+esc(p.id)+'"'+(String(p.id)===String(cur)?' selected':'')+'>'+esc(lfName(p))+'</option>').join('');
+  const gopt = (D, cur) => '<option value="ALL"'+(cur==='ALL'?' selected':'')+'>Season, all games ('+D.played.length+')</option>'
+    + D.played.slice().reverse().map(g => '<option value="'+esc(g.id)+'"'+(g.id===cur?' selected':'')+'>'+esc(fDay(g.d+'T18:00:00Z'))+'  '+(g.home?'vs ':'@ ')+esc(g.opp)+'  '+g.res+' '+g.pts+'-'+g.opts+'</option>').join('');
+  h += '<div class="pvsel"><div class="pvside a"><label>Player A<select data-sel="pvA">'+popt(state.pvA)+'</select></label><label>Game<select data-sel="pvAg">'+gopt(A, ag)+'</select></label></div>'
+    + '<div class="pvvs">vs</div>'
+    + '<div class="pvside b"><label>Player B<select data-sel="pvB">'+popt(state.pvB)+'</select></label><label>Game<select data-sel="pvBg">'+gopt(B, bg)+'</select></label></div></div>';
+  if(String(PA.id)===String(PB.id) && ag===bg){ $('#pvp').innerHTML = h + '<div class="panel empty">Pick two different players, or two different games for the same player.</div>'; return; }
+
+  // header cards
+  const scopeTxt = (D, gsel) => { if(gsel==='ALL') return esc(state.season)+' season, '+D.T.gp+' games, per game';
+    const g = D.games[0]; return esc(new Date(g.d+'T18:00:00Z').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',timeZone:'America/Denver'}))+', '+(g.home?'vs ':'@ ')+esc(g.opp)+', '+g.res+' '+g.pts+'-'+g.opts; };
+  const per = (D, k, gsel) => gsel==='ALL' ? D.per(k) : D.T[k];
+  const card = (P, D, gsel, cls) => '<div class="panel pvcard '+cls+'"><div class="pvnm">'+esc(P.name)+'</div><div class="pvmeta">'+esc(P.pos||'')+(P.num?' · #'+esc(P.num):'')+' · '+scopeTxt(D, gsel)+'</div>'
+    + '<div class="pvline">'+[['PTS','pts'],['REB','reb'],['AST','ast'],['MIN','min']].map(([l,k]) => '<div><b>'+num(per(D,k,gsel), gsel==='ALL'?1:0)+'</b><span>'+l+'</span></div>').join('')+'</div></div>';
+  h += '<div class="pvcards">'+card(PA, A, ag, 'a')+card(PB, B, bg, 'b')+'</div>';
+
+  // head to head (mirrored bars)
+  const rows = [
+    ['Points','pts',1,1],['Rebounds','reb',1,1],['Assists','ast',1,1],['Steals','stl',1,1],['Blocks','blk',1,1],['Turnovers','tov',-1,1],['Plus/minus','pm',1,1],['Minutes','min',0,1],
+    ['FG%','fgp',1,0],['3P%','fg3p',1,0],['FT%','ftp',1,0],['True shooting %','ts',1,0]
+  ];
+  const val = (D, k, gsel, isCount) => isCount ? per(D, k, gsel) : D[k];
+  const fmt = (v, k, gsel, isCount) => !ok(v) ? '–' : k==='pm' ? sgn(v, gsel==='ALL'?1:0) : isCount ? num(v, gsel==='ALL'?1:0) : num(v,1)+'%';
+  const bars = rows.map(([lab,k,dir,isCount]) => {
+    const a = val(A,k,ag,isCount), b = val(B,k,bg,isCount), mx = Math.max(Math.abs(a||0), Math.abs(b||0), 0.0001);
+    const aw = ok(a) ? (100*Math.abs(a)/mx).toFixed(1) : 0, bw = ok(b) ? (100*Math.abs(b)/mx).toFixed(1) : 0;
+    const lead = !dir || !ok(a) || !ok(b) || Math.abs(a-b) < 0.05 ? 0 : ((a-b)*dir > 0 ? 1 : 2);
+    return '<div class="h2r"><span class="h2v a'+(lead===1?' lead':'')+'">'+fmt(a,k,ag,isCount)+'</span><span class="h2t a"><i class="'+(k==='pm'&&a<0?'neg':'')+'" style="width:'+aw+'%"></i></span>'
+      + '<span class="h2l">'+lab+'</span><span class="h2t b"><i class="'+(k==='pm'&&b<0?'neg':'')+'" style="width:'+bw+'%"></i></span><span class="h2v b'+(lead===2?' lead':'')+'">'+fmt(b,k,bg,isCount)+'</span></div>';
+  }).join('');
+  const wins = rows.reduce((acc,[,k,dir,isCount]) => { const a = val(A,k,ag,isCount), b = val(B,k,bg,isCount); if(!dir || !ok(a) || !ok(b) || Math.abs(a-b) < 0.05) return acc; (a-b)*dir > 0 ? acc[0]++ : acc[1]++; return acc; }, [0,0]);
+  h += '<div class="panel pad pvbox"><div class="gsh"><h3>Head to head</h3><span class="pvscore"><b class="ca">'+lastFirst(PA.name).last+' '+wins[0]+'</b> – <b class="cb">'+wins[1]+' '+lastFirst(PB.name).last+'</b> <span class="note">categories led</span></span></div>'+bars+'</div>';
+
+  // scoring by game (season trend for both)
+  h += '<div class="pvgrid"><div class="panel pad pvbox"><div class="gsh"><h3>Points by game</h3></div>'+pvpTrend(X, A, B, PA, PB, ag, bg)+'</div>';
+  // shot profile
+  const prof = (D) => { const tot = Object.values(D.Z).reduce((s,v)=>s+v.a,0);
+    return PVP_ZG.map(([lab,zs]) => { const a = zs.reduce((s,z)=>s+((D.Z[z]||{}).a||0),0), m = zs.reduce((s,z)=>s+((D.Z[z]||{}).m||0),0); return {lab, a, m, share: tot ? 100*a/tot : 0}; }); };
+  const pa = prof(A), pb = prof(B), PCOL = ['#3d2370','#9c86c9','#d9a521','#6f9fb1'];
+  const stack = (pr, P) => '<div class="pvstack"><div class="pvsn">'+esc(lastFirst(P.name).last)+'</div><div class="pvbar">'+pr.map((z,i) => z.share ? '<i class="rpt" data-n="'+esc(z.lab)+'" data-c="'+PCOL[i]+'" data-l="Share of shots::'+num(z.share,0)+'%||FG::'+z.m+'/'+z.a+(z.a?' ('+Math.round(100*z.m/z.a)+'%)':'')+'" style="width:'+z.share.toFixed(1)+'%;background:'+PCOL[i]+'">'+(z.share>=9?Math.round(z.share)+'%':'')+'</i>' : '').join('')+'</div></div>';
+  h += '<div class="panel pad pvbox"><div class="gsh"><h3>Shot profile</h3></div>'+stack(pa, PA)+stack(pb, PB)
+    + '<div class="lgd" style="margin-top:10px">'+PVP_ZG.map((z,i)=>'<span><b style="background:'+PCOL[i]+'"></b>'+z[0]+'</span>').join('')+'</div>'
+    + '<table class="pvzt"><thead><tr><th class="l">Zone</th><th class="ca">'+esc(lastFirst(PA.name).last)+'</th><th class="cb">'+esc(lastFirst(PB.name).last)+'</th></tr></thead><tbody>'
+    + PVP_ZG.map((z,i) => { const fa = pa[i], fb = pb[i], pA = fa.a ? 100*fa.m/fa.a : null, pB = fb.a ? 100*fb.m/fb.a : null;
+        return '<tr><td class="l">'+z[0]+'</td><td class="num'+(ok(pA)&&ok(pB)&&pA>pB?' lead':'')+'">'+fa.m+'/'+fa.a+' <span class="note">'+(ok(pA)?Math.round(pA)+'%':'–')+'</span></td><td class="num'+(ok(pA)&&ok(pB)&&pB>pA?' lead':'')+'">'+fb.m+'/'+fb.a+' <span class="note">'+(ok(pB)?Math.round(pB)+'%':'–')+'</span></td></tr>'; }).join('')
+    + '</tbody></table></div></div>';
+  // twin courts
+  h += '<div class="pvcourts"><div class="panel pad"><div class="pvct ca">'+esc(PA.name)+'</div>'+zoneCourt(A.Z)+'</div><div class="panel pad"><div class="pvct cb">'+esc(PB.name)+'</div>'+zoneCourt(B.Z)+'</div></div>';
+  $('#pvp').innerHTML = h;
+}
+function pvpTrend(X, A, B, PA, PB, ag, bg){
+  const G = X.games; if(!G.length) return '';
+  const W = 640, H = 300, ml = 40, mr = 16, mt = 16, mb = 40;
+  const ptsA = {}, ptsB = {}; A.byGame.forEach(o => ptsA[o.g.id] = o.pts); B.byGame.forEach(o => ptsB[o.g.id] = o.pts);
+  const mx = Math.max(10, ...Object.values(ptsA), ...Object.values(ptsB)), top = Math.ceil(mx/10)*10;
+  const xs = i => ml + (G.length===1 ? (W-ml-mr)/2 : i*(W-ml-mr)/(G.length-1)), Y = v => mt + (top - v)/top*(H-mt-mb);
+  let s = '<svg class="sc" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Points by game">';
+  for(let v=0; v<=top; v+=top/(top>=40?4:2)) s += '<line class="gl" x1="'+ml+'" x2="'+(W-mr)+'" y1="'+Y(v)+'" y2="'+Y(v)+'"/><text x="'+(ml-6)+'" y="'+(Y(v)+4)+'" text-anchor="end">'+v+'</text>';
+  const line = (pts, col, sel) => { let d = '', dots = '';
+    G.forEach((g,i) => { if(pts[g.id]==null){ d += ' '; return; } const x = xs(i).toFixed(1), y = Y(pts[g.id]).toFixed(1); d += (d.trim()==='' || d.endsWith(' ') ? 'M' : 'L')+x+' '+y;
+      const on = sel===g.id; dots += '<g class="rpt" data-n="'+esc(fDay(g.d+'T18:00:00Z')+' '+(g.home?'vs':'@')+' '+g.opp)+'" data-c="'+col+'" data-l="Points::'+pts[g.id]+'"><circle class="hit" cx="'+x+'" cy="'+y+'" r="10"/><circle class="dotp" cx="'+x+'" cy="'+y+'" r="'+(on?7:4)+'" fill="'+col+'"'+(on?' stroke="#15112a" stroke-width="2"':'')+'/></g>'; });
+    return '<path d="'+d.trim()+'" fill="none" stroke="'+col+'" stroke-width="2.5" stroke-linejoin="round"/>'+dots; };
+  s += line(ptsB, 'var(--b)', bg) + line(ptsA, 'var(--a)', ag);
+  const step = Math.max(1, Math.round(G.length/10));
+  G.forEach((g,i) => { if(i%step===0) s += '<text x="'+xs(i).toFixed(1)+'" y="'+(H-mb+16)+'" text-anchor="middle">'+esc(g.d.slice(5).replace('-','/'))+'</text>'; });
+  return s + '</svg><div class="lgd"><span><b style="background:var(--a)"></b>'+esc(PA.name)+'</span><span><b style="background:var(--b)"></b>'+esc(PB.name)+'</span><span>Larger dot: the selected game</span></div>';
+}
+
 /* ---------- lineups ---------- */
 const short = n => { const p = String(n).split(' '); return p.length>1 ? p[0][0]+'. '+p.slice(1).join(' ') : n; };
 function renderLineups(){
@@ -1117,7 +1265,7 @@ document.addEventListener('pointerout', e => { const g = e.target.closest && e.t
 addEventListener('scroll', hideTip, {passive:true});
 
 /* ---------- wiring ---------- */
-function renderAll(){ renderTabs(); renderHero(); renderOverview(); renderPlayerPerf(); renderLineupPerf(); renderLineups(); renderOnOff(); renderShots(); renderModels(); }
+function renderAll(){ renderTabs(); renderHero(); renderOverview(); renderPlayerPerf(); renderLineupPerf(); renderPvp(); renderLineups(); renderOnOff(); renderShots(); renderModels(); }
 const RENDER = {ro:renderRoster, lu:renderLineups, tr:renderTrioTable};
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-trio],[data-trall],[data-dash],[data-sched],[data-lu],[data-lumin],[data-sc],[data-mdl],[data-ts]');
@@ -1141,6 +1289,8 @@ document.addEventListener('change', e => {
   else if(k==='ppGame'){ state.ppGame = s.value; renderPlayerPerf(); }
   else if(/^lp[012]$/.test(k)){ state.lp[+k[2]] = s.value; renderLineupPerf(); }
   else if(k==='lpGame'){ state.lpGame = s.value; renderLineupPerf(); }
+  else if(k==='pvA' || k==='pvB'){ state[k] = s.value; state[k+'g'] = 'ALL'; renderPvp(); }
+  else if(k==='pvAg' || k==='pvBg'){ state[k] = s.value; renderPvp(); }
 });
 
 const fTS = s => new Date(s).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'});
