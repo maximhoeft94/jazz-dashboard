@@ -317,21 +317,7 @@ table.vs td.st{width:42%;min-width:220px}
 .sc .rpt .dotp{stroke:var(--panel);stroke-width:1.5;transition:stroke-width .1s}
 .sc .rpt:hover .dotp{stroke:var(--ink);stroke-width:2.5}
 
-/* shot chart */
-.shot{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:14px}
-@media (max-width:900px){.shot{grid-template-columns:1fr}}
-.court{width:100%;height:auto;display:block;max-width:600px;margin:0 auto}
-.court .cl{fill:none;stroke:#b7b1cb;stroke-width:2}
-.court .cl.d{stroke-dasharray:6 6}
-.court .floor{fill:#fbfaf6}
-.court .hx{stroke:var(--panel);stroke-width:.8}
-.court .mk{fill:var(--good);opacity:.75}
-.court .ms{fill:none;stroke:var(--bad);stroke-width:2;opacity:.6}
-.court .rpt{cursor:pointer}
-.court .rpt:hover .hx{stroke:var(--ink);stroke-width:2}
-.scale{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);justify-content:center;margin-top:6px}
-.scale .bar{width:160px;height:10px;border-radius:2px;background:linear-gradient(90deg,var(--cold),var(--mid),var(--hot))}
-.mini{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:12px}
+@media (max-width:900px){.mini{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:12px}
 .mini div{padding:8px 10px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
 .mini div:nth-child(3n){border-right:0}
 .mini div:nth-last-child(-n+3){border-bottom:0}
@@ -401,9 +387,6 @@ footer{margin-top:40px;font-size:13px;color:var(--muted);border-top:3px solid va
   <section id="playerPerf"></section>
   <section id="lineupPerf"></section>
   <section id="pvp"></section>
-  <section id="lineups"></section>
-  <section id="onoff"></section>
-  <section id="shots"></section>
   <section id="models"></section>
   <footer id="foot"></footer>
 </div>
@@ -427,11 +410,11 @@ const mean = xs => { xs = xs.filter(ok); return xs.length ? xs.reduce((s,x)=>s+x
 if(!D){ document.body.innerHTML = '<div class="wrap"><div class="empty">No data embedded. Run <code>python fetch_jazz.py</code> to load the seasons.</div></div>'; return; }
 
 /* ---------- state ---------- */
-const DASH_IDS = ['overview','playerPerf','lineupPerf','pvp','lineups','onoff','shots','models'];
+const DASH_IDS = ['overview','playerPerf','lineupPerf','pvp','models'];
 const state = {
-  season: D.current || D.order[0], dash: (DASH_IDS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview'), ins:'league', lt:'adv', pm:'pg', lu:'5', luMin:null,
-  scP:'ALL', scMode:'hex', mdl:'pyth', schedAll:false, pvA:null, pvB:null, pvAg:'ALL', pvBg:'ALL', trAll:false, ppPlayer:null, ppGame:null, pA:null, pB:null,
-  sort:{ ro:{k:'ppg',d:-1}, lu:{k:'min',d:-1}, tr:{k:'min',d:-1} }
+  season: D.current || D.order[0], dash: (DASH_IDS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview'),
+  mdl:'pyth', schedAll:false, pvA:null, pvB:null, pvAg:'ALL', pvBg:'ALL', trAll:false, ppPlayer:null, ppGame:null,
+  sort:{ ro:{k:'ppg',d:-1}, tr:{k:'min',d:-1} }
 };
 
 /* ---------- per-season model (memoized) ---------- */
@@ -484,7 +467,7 @@ const rkColor = (r,n) => r==null ? 'var(--muted)' : r <= n/3 ? 'var(--good)' : r
 const rkBadge = (r,n,dir) => r==null ? '' : '<span class="rkb" style="background:'+(dir===0?'var(--muted)':rkColor(r,n))+'">'+ord(r)+'</span>';
 
 /* ---------- tabs + hero ---------- */
-const DASH = [['overview','Team Performance (Overview)'],['playerPerf','Player Performance'],['lineupPerf','Lineup Performance'],['pvp','Player v. Player'],['lineups','Lineups'],['onoff','On/Off'],['shots','Shot Chart'],['models','Models']];
+const DASH = [['overview','Team Performance (Overview)'],['playerPerf','Player Performance'],['lineupPerf','Lineup Performance'],['pvp','Player v. Player'],['models','Models']];
 function renderTabs(){
   $('#tabs').innerHTML = DASH.map(([id,lab]) => '<button class="tab'+(state.dash===id?' on':'')+'" role="tab" aria-selected="'+(state.dash===id)+'" aria-controls="'+id+'" data-dash="'+id+'">'+lab+'</button>').join('');
   DASH.forEach(([id]) => { $('#'+id).hidden = state.dash!==id; });
@@ -1009,136 +992,13 @@ function pvpTrend(X, A, B, PA, PB, ag, bg){
   return s + '</svg><div class="lgd"><span><b style="background:var(--a)"></b>'+esc(PA.name)+'</span><span><b style="background:var(--b)"></b>'+esc(PB.name)+'</span><span>Larger dot: the selected game</span></div>';
 }
 
-/* ---------- lineups ---------- */
+/* ---------- shared: axis ticks ---------- */
 const short = n => { const p = String(n).split(' '); return p.length>1 ? p[0][0]+'. '+p.slice(1).join(' ') : n; };
-function renderLineups(){
-  const X = S(), L = (X.raw.lineups[state.lu]||[]).map(l => Object.assign({}, l, {names: l.ids.map(X.name)}));
-  const opts = state.lu==='5' ? [0,25,50,100,200] : [0,50,100,250,500];
-  if(state.luMin==null || !opts.includes(state.luMin)) state.luMin = opts.slice().reverse().find(o => L.filter(l=>l.min>=o).length >= 8) || 0;
-  const V = L.filter(l => (l.min||0) >= state.luMin);
-  const cols = [{k:'names',t:'Lineup',l:1,f:r=>r.names.map(short).map(esc).join(', '),sv:r=>r.names.join()},{k:'gp',t:'GP'},{k:'min',t:'MIN',f:r=>num(r.min,0)},{k:'poss',t:'POSS',f:r=>ok(r.poss)?r.poss:'–',d:'Possessions played'},
-    {k:'ortg',t:'ORtg',f:r=>num(r.ortg,1),d:'Points scored per 100 possessions'},{k:'drtg',t:'DRtg',f:r=>num(r.drtg,1),d:'Points allowed per 100 possessions'},{k:'net',t:'Net',f:r=>'<span class="'+(r.net>0?'W':r.net<0?'L':'')+'">'+sgn(r.net)+'</span>'},{k:'pace',t:'Pace',f:r=>num(r.pace,1)},{k:'pm',t:'+/-',f:r=>ok(r.pm)?sgn(r.pm,0):'–'}];
-  const rows = sortRows(V, 'lu', cols);
-  let h = '<div class="sh"><h2>Lineup combinations</h2><span class="note">Small samples swing wildly; watch possessions before trusting a rating.</span></div>';
-  h += '<div class="pills">'+[['5','5-man units'],['2','2-man pairs']].map(p=>'<button class="pill'+(state.lu===p[0]?' on':'')+'" data-lu="'+p[0]+'">'+p[1]+'</button>').join('')
-    + '<span class="sep"></span><span class="lab">Minimum minutes</span>'+opts.map(o=>'<button class="pill'+(state.luMin===o?' on':'')+'" data-lumin="'+o+'">'+(o?o+'+':'All')+'</button>').join('')+'</div>';
-  if(!V.length){ $('#lineups').innerHTML = h + '<div class="panel empty">No lineups at this minute threshold yet.</div>'; return; }
-  // scatter: ORtg (x) vs DRtg (y, inverted: up = better defense)
-  const P = V.filter(l => ok(l.ortg) && ok(l.drtg));
-  const W = 720, H = 400, ml = 52, mr = 20, mt = 20, mb = 46;
-  let x0 = Math.min.apply(null,P.map(p=>p.ortg)), x1 = Math.max.apply(null,P.map(p=>p.ortg)), y0 = Math.min.apply(null,P.map(p=>p.drtg)), y1 = Math.max.apply(null,P.map(p=>p.drtg));
-  x0 = Math.min(x0, X.J.ortg) - 3; x1 = Math.max(x1, X.J.ortg) + 3; y0 = Math.min(y0, X.J.drtg) - 3; y1 = Math.max(y1, X.J.drtg) + 3;
-  const SX = v => ml + (v-x0)/(x1-x0)*(W-ml-mr), SY = v => mt + (v-y0)/(y1-y0)*(H-mt-mb);
-  const maxM = Math.max.apply(null,P.map(p=>p.min));
-  let s = '<svg class="sc xy" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Lineup offensive vs defensive rating">';
-  niceTicks(x0,x1,6).forEach(v => s += '<line class="gl" x1="'+SX(v)+'" x2="'+SX(v)+'" y1="'+mt+'" y2="'+(H-mb)+'"/><text x="'+SX(v)+'" y="'+(H-mb+16)+'" text-anchor="middle">'+v+'</text>');
-  niceTicks(y0,y1,5).forEach(v => s += '<line class="gl" x1="'+ml+'" x2="'+(W-mr)+'" y1="'+SY(v)+'" y2="'+SY(v)+'"/><text x="'+(ml-6)+'" y="'+(SY(v)+4)+'" text-anchor="end">'+v+'</text>');
-  s += '<line class="avg" x1="'+SX(X.J.ortg)+'" x2="'+SX(X.J.ortg)+'" y1="'+mt+'" y2="'+(H-mb)+'"/><line class="avg" x1="'+ml+'" x2="'+(W-mr)+'" y1="'+SY(X.J.drtg)+'" y2="'+SY(X.J.drtg)+'"/>';
-  s += '<text x="'+(W-mr-4)+'" y="'+(mt+14)+'" text-anchor="end" class="lab">Good offense, good defense</text><text x="'+(ml+4)+'" y="'+(H-mb-6)+'">Poor offense, poor defense</text>';
-  P.slice().sort((a,b)=>b.min-a.min).forEach(p => {
-    const r = 4 + 14*Math.sqrt(p.min/maxM), c = p.net>=0 ? 'var(--good)' : 'var(--bad)';
-    s += '<g class="rpt" data-n="'+esc(p.names.map(short).join(', '))+'" data-c="'+c+'" data-l="Minutes::'+num(p.min,0)+'||Offensive rating::'+num(p.ortg,1)+'||Defensive rating::'+num(p.drtg,1)+'||Net rating::'+sgn(p.net)+'"><circle class="hit" cx="'+SX(p.ortg)+'" cy="'+SY(p.drtg)+'" r="'+(r+4)+'"/><circle class="dotp" cx="'+SX(p.ortg).toFixed(1)+'" cy="'+SY(p.drtg).toFixed(1)+'" r="'+r.toFixed(1)+'" fill="'+c+'" fill-opacity=".55"/></g>';
-  });
-  s += '<text x="'+((ml+W-mr)/2)+'" y="'+(H-8)+'" text-anchor="middle">Offensive rating (right is better)</text><text transform="translate(14 '+((mt+H-mb)/2)+') rotate(-90)" text-anchor="middle">Defensive rating (up is better)</text></svg>';
-  h += '<div class="panel card" style="margin-bottom:14px"><h3>Offense vs. defense by '+(state.lu==='5'?'lineup':'pair')+'</h3><div class="lgd"><span><b class="c" style="background:var(--good)"></b>Outscored opponents</span><span><b class="c" style="background:var(--bad)"></b>Outscored</span><span>Circle size: minutes. Dashed lines: Jazz team ratings.</span></div>'+s+'</div>';
-  h += '<div class="panel scroll"><table>'+thead('lu', cols)+'<tbody>'+rows.map(r => '<tr>'+cols.map(c=>cell(c,r,'lu')).join('')+'</tr>').join('')+'</tbody></table></div>';
-  $('#lineups').innerHTML = h;
-}
 function niceTicks(min,max,n){
   const span = (max-min) || 1, raw = span/n, mag = Math.pow(10,Math.floor(Math.log10(raw))), f = raw/mag;
   const step = (f<1.5?1:f<3?2:f<7?5:10)*mag, out = [];
   for(let v=Math.ceil(min/step)*step; v<=max+1e-9; v+=step) out.push(+v.toFixed(6));
   return out;
-}
-
-/* ---------- on/off ---------- */
-function renderOnOff(){
-  const X = S(), O = (X.raw.onoff||[]).filter(o => ok(o.onNet) && ok(o.offNet)).map(o => Object.assign({}, o, {name:X.name(o.id), diff:o.onNet-o.offNet}))
-    .filter(o => (o.onMin||0) >= Math.max(15, X.J.gp*3)).sort((a,b)=>b.diff-a.diff);
-  let h = '<div class="sh"><h2>On/off court</h2><span class="note">Jazz net rating with each player on the floor minus with him off it.</span></div>';
-  if(!O.length){ $('#onoff').innerHTML = h + '<div class="panel empty">On/off data is not loaded yet. Run <code>python fetch_jazz.py</code>.</div>'; return; }
-  const mx = Math.max(5, Math.max.apply(null,O.map(o=>Math.abs(o.diff))));
-  h += '<div class="g2"><div class="panel card"><h3>On minus off, net rating</h3>'+O.map(o => {
-    const w = (Math.abs(o.diff)/mx*100).toFixed(1);
-    return '<div class="cr"><span class="tm">'+esc(o.name)+'</span><span class="dv rpt" data-n="'+esc(o.name)+'" data-c="var(--jazz)" data-l="On court::'+sgn(o.onNet)+' in '+num(o.onMin,0)+' min||Off court::'+sgn(o.offNet)+' in '+num(o.offMin,0)+' min||Difference::'+sgn(o.diff)+'"><span class="l">'+(o.diff<0?'<i style="width:'+w+'%;background:var(--bad)"></i>':'')+'</span><span class="r">'+(o.diff>0?'<i style="width:'+w+'%;background:var(--good)"></i>':'')+'</span></span><span class="v num">'+sgn(o.diff)+'</span></div>';
-  }).join('')+'<div class="note" style="margin-top:6px">On/off mixes a player\'s impact with who he shares the floor with. The lineup model below tries to separate the two.</div></div>';
-  h += '<div class="panel scroll"><table><thead><tr><th class="l">Player</th><th data-d="Minutes on court">On MIN</th><th data-d="Offensive rating with him on">On ORtg</th><th data-d="Defensive rating with him on">On DRtg</th><th>On Net</th><th>Off Net</th><th>Diff</th></tr></thead><tbody>'
-    + O.map(o => '<tr><td class="l">'+esc(o.name)+'</td><td class="num">'+num(o.onMin,0)+'</td><td class="num">'+num(o.onO,1)+'</td><td class="num">'+num(o.onD,1)+'</td><td class="num">'+sgn(o.onNet)+'</td><td class="num">'+sgn(o.offNet)+'</td><td class="num '+(o.diff>0?'W':'L')+'">'+sgn(o.diff)+'</td></tr>').join('')+'</tbody></table></div></div>';
-  $('#onoff').innerHTML = h;
-}
-
-/* ---------- shot chart ---------- */
-// NBA shot coordinates: tenths of a foot, hoop at (0,0), y grows toward half court. Drawn with the hoop at the bottom.
-function courtLines(){
-  const c = 'class="cl"', a3 = Math.sqrt(237.5*237.5-220*220);
-  return '<rect class="floor" x="-250" y="-422.5" width="500" height="470"/>'
-    + '<rect '+c+' x="-250" y="-422.5" width="500" height="470"/>'
-    + '<rect '+c+' x="-80" y="-142.5" width="160" height="190"/><rect '+c+' x="-60" y="-142.5" width="120" height="190"/>'
-    + '<path '+c+' d="M-60 -142.5 A60 60 0 0 1 60 -142.5"/><path class="cl d" d="M-60 -142.5 A60 60 0 0 0 60 -142.5"/>'
-    + '<path '+c+' d="M-40 0 A40 40 0 0 1 40 0"/><line '+c+' x1="-30" x2="30" y1="7.5" y2="7.5"/><circle '+c+' cx="0" cy="0" r="7.5"/>'
-    + '<line '+c+' x1="-220" x2="-220" y1="47.5" y2="'+(-a3).toFixed(1)+'"/><line '+c+' x1="220" x2="220" y1="47.5" y2="'+(-a3).toFixed(1)+'"/>'
-    + '<path '+c+' d="M-220 '+(-a3).toFixed(1)+' A237.5 237.5 0 0 1 220 '+(-a3).toFixed(1)+'"/>'
-    + '<path '+c+' d="M-60 -422.5 A60 60 0 0 0 60 -422.5"/><path '+c+' d="M-20 -422.5 A20 20 0 0 0 20 -422.5"/>';
-}
-function hexbin(points, r){
-  const dx = r*2*Math.sin(Math.PI/3), dy = r*1.5, bins = {};
-  points.forEach(p => {
-    let py = p.sy/dy, pj = Math.round(py), px = p.x/dx - (pj & 1)/2, pi = Math.round(px), py1 = py - pj;
-    if(Math.abs(py1)*3 > 1){
-      const px1 = px - pi, pi2 = pi + (px < pi ? -1 : 1)/2, pj2 = pj + (py < pj ? -1 : 1), px2 = px - pi2, py2 = py - pj2;
-      if(px1*px1 + py1*py1 > px2*px2 + py2*py2){ pi = pi2 + (pj & 1 ? 1 : -1)/2; pj = pj2; }
-    }
-    const id = pi+'|'+pj, b = bins[id] || (bins[id] = {x:(pi + (pj & 1)/2)*dx, y:pj*dy, n:0, m:0, e:0, en:0});
-    b.n++; b.m += p.m; if(ok(p.e)){ b.e += p.e; b.en++; }
-  });
-  return Object.values(bins);
-}
-const hexPath = r => { let d = ''; for(let i=0;i<6;i++){ const a = i*Math.PI/3; d += (i?'L':'M')+(Math.sin(a)*r).toFixed(2)+' '+(-Math.cos(a)*r).toFixed(2); } return d+'Z'; };
-function mixColor(t){ // t in [-1,1]: cold -> mid -> hot
-  const c1 = [59,111,182], c0 = [230,228,238], c2 = [209,73,91], a = t<0 ? c1 : c2, f = Math.min(1,Math.abs(t));
-  return 'rgb('+c0.map((v,i)=>Math.round(v+(a[i]-v)*f)).join(',')+')';
-}
-function renderShots(){
-  const X = S();
-  let h = '<div class="sh"><h2>Shot chart</h2><span class="note">Every Jazz field goal attempt, '+esc(state.season)+'.</span></div>';
-  if(!X.shots.length){ $('#shots').innerHTML = h + '<div class="panel empty">Shot data is not loaded yet. Run <code>python fetch_jazz.py</code>.</div>'; return; }
-  const counts = {}; X.shots.forEach(s => counts[s.p] = (counts[s.p]||0)+1);
-  const pids = Object.keys(counts).sort((a,b)=>counts[b]-counts[a]);
-  if(state.scP!=='ALL' && !counts[state.scP]) state.scP = 'ALL';
-  const SH = state.scP==='ALL' ? X.shots : X.shots.filter(s => String(s.p)===String(state.scP));
-  h += '<div class="pills">'+[['hex','Hot and cold vs. league'],['dots','Makes and misses']].map(p=>'<button class="pill'+(state.scMode===p[0]?' on':'')+'" data-sc="'+p[0]+'">'+p[1]+'</button>').join('')+'</div>';
-  let svg = '<svg class="court" viewBox="-252 -352 504 402" role="img" aria-label="Shot chart">'+courtLines();
-  if(state.scMode==='hex'){
-    const r = SH.length > 1500 ? 11 : SH.length > 400 ? 13 : 16;
-    const bins = hexbin(SH.map(s => ({x:s.x, sy:-s.y, m:s.m, e:s.e})), r).filter(b => b.y > -350 && b.y < 50);
-    const ns = bins.map(b=>b.n).sort((a,b)=>a-b), capN = ns[Math.floor(ns.length*0.92)] || 1;
-    const minN = SH.length > 400 ? 2 : 1;
-    bins.filter(b=>b.n>=minN).forEach(b => {
-      const fg = b.m/b.n, ex = b.en ? b.e/b.en : null, diff = ok(ex) ? fg-ex : 0, rr = r*(0.3 + 0.7*Math.sqrt(Math.min(1,b.n/capN)));
-      svg += '<g class="rpt" data-n="'+b.n+' shot'+(b.n>1?'s':'')+'" data-c="'+mixColor(diff/0.12)+'" data-l="FG%::'+num(100*fg,1)+'||League FG% from these spots::'+(ok(ex)?num(100*ex,1):'–')+'||Difference::'+(ok(ex)?sgn(100*diff,1):'–')+'" transform="translate('+b.x.toFixed(1)+' '+b.y.toFixed(1)+')"><path class="hx" d="'+hexPath(rr)+'" fill="'+mixColor(diff/0.12)+'"/></g>';
-    });
-  } else {
-    SH.forEach(s => { svg += s.m ? '<circle class="mk" cx="'+s.x+'" cy="'+(-s.y)+'" r="3.4"/>' : '<path class="ms" d="M'+(s.x-3)+' '+(-s.y-3)+'L'+(s.x+3)+' '+(-s.y+3)+'M'+(s.x+3)+' '+(-s.y-3)+'L'+(s.x-3)+' '+(-s.y+3)+'"/>'; });
-  }
-  svg += '</svg>';
-  const legend = state.scMode==='hex'
-    ? '<div class="scale"><span>Colder than league</span><span class="bar"></span><span>Hotter</span></div><div class="note" style="text-align:center">Size: how often they shoot from there. Color: FG% minus the league\'s FG% from the same zone.</div>'
-    : '<div class="lgd" style="justify-content:center"><span><b class="c" style="background:var(--good)"></b>Make</span><span><b style="background:none;color:var(--bad);width:auto;font-weight:700">×</b>Miss</span></div>';
-  // zone table
-  const Z = {}; SH.forEach(s => { const z = Z[s.zb] || (Z[s.zb] = {n:0,m:0,e:0,en:0,v:s.v}); z.n++; z.m += s.m; if(ok(s.e)){ z.e += s.e; z.en++; } });
-  const order = ['Restricted Area','In The Paint (Non-RA)','Mid-Range','Left Corner 3','Right Corner 3','Above the Break 3','Backcourt'];
-  const n = SH.length, made = SH.reduce((a,s)=>a+s.m,0), pts = SH.reduce((a,s)=>a+s.m*s.v,0), xpts = SH.reduce((a,s)=>a+(ok(s.e)?s.e*s.v:0),0), m3 = SH.filter(s=>s.v===3);
-  const rim = (Z['Restricted Area']||{n:0}).n;
-  const mini = '<div class="mini"><div><b class="num">'+n+'</b><span>Field goal attempts</span></div><div><b class="num">'+num(100*made/n,1)+'</b><span>FG%</span></div><div><b class="num">'+num(100*(made+0.5*m3.reduce((a,s)=>a+s.m,0))/n,1)+'</b><span>eFG%</span></div>'
-    + '<div><b class="num">'+num(100*rim/n,1)+'%</b><span>Shots at the rim</span></div><div><b class="num">'+num(100*m3.length/n,1)+'%</b><span>Shots from three</span></div><div><b class="num '+(pts>=xpts?'W':'L')+'">'+sgn(100*(pts-xpts)/n,1)+'</b><span>Points per 100 shots vs. league</span></div></div>';
-  let zt = '<table><thead><tr><th class="l">Zone</th><th>FGA</th><th data-d="Share of this selection\'s attempts">Freq</th><th>FG%</th><th data-d="League FG% from the same spots">Lg FG%</th><th>Diff</th></tr></thead><tbody>';
-  order.filter(k=>Z[k]).forEach(k => { const z = Z[k], fg = 100*z.m/z.n, ex = z.en ? 100*z.e/z.en : null, d = ok(ex) ? fg-ex : null;
-    zt += '<tr><td class="l">'+esc(k)+'</td><td class="num">'+z.n+'</td><td class="num">'+num(100*z.n/n,1)+'%</td><td class="num"><b>'+num(fg,1)+'</b></td><td class="num note">'+num(ex,1)+'</td><td class="num '+(d>0?'W':d<0?'L':'')+'">'+sgn(d,1)+'</td></tr>'; });
-  zt += '</tbody></table>';
-  const sel = '<div class="sel"><select data-sel="scP" aria-label="Player"><option value="ALL"'+(state.scP==='ALL'?' selected':'')+'>All Jazz players ('+X.shots.length+' shots)</option>'
-    + pids.map(p => '<option value="'+p+'"'+(String(state.scP)===String(p)?' selected':'')+'>'+esc(X.name(p))+' ('+counts[p]+')</option>').join('')+'</select></div>';
-  h += '<div class="shot"><div class="panel pad">'+sel+svg+legend+'</div><div><div class="panel pad" style="margin-bottom:14px">'+mini+'<div class="scroll">'+zt+'</div></div></div></div>';
-  $('#shots').innerHTML = h;
 }
 
 /* ---------- statistical models ---------- */
@@ -1265,27 +1125,23 @@ document.addEventListener('pointerout', e => { const g = e.target.closest && e.t
 addEventListener('scroll', hideTip, {passive:true});
 
 /* ---------- wiring ---------- */
-function renderAll(){ renderTabs(); renderHero(); renderOverview(); renderPlayerPerf(); renderLineupPerf(); renderPvp(); renderLineups(); renderOnOff(); renderShots(); renderModels(); }
-const RENDER = {ro:renderRoster, lu:renderLineups, tr:renderTrioTable};
+function renderAll(){ renderTabs(); renderHero(); renderOverview(); renderPlayerPerf(); renderLineupPerf(); renderPvp(); renderModels(); }
+const RENDER = {ro:renderRoster, tr:renderTrioTable};
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-trio],[data-trall],[data-dash],[data-sched],[data-lu],[data-lumin],[data-sc],[data-mdl],[data-ts]');
+  const t = e.target.closest('[data-trio],[data-trall],[data-dash],[data-sched],[data-mdl],[data-ts]');
   if(!t) return;
   const d = t.dataset;
   if(d.trio){ state.lp = d.trio.split(','); renderLineupPerf(); $('#lpFilters').scrollIntoView({block:'start'}); }
   else if(d.trall){ state.trAll = !state.trAll; renderTrioTable(); }
   else if(d.sched){ state.schedAll = !state.schedAll; renderSchedule(); if(!state.schedAll) $('#ovSched').scrollIntoView({block:'start'}); }
   else if(d.dash){ state.dash = d.dash; hideTip(); renderTabs(); history.replaceState(null,'','#'+d.dash); const tb = $('#tabs'); if(tb.getBoundingClientRect().top < 0 || scrollY > tb.offsetTop) scrollTo({top: tb.offsetTop, behavior:'instant'}); }
-  else if(d.lu){ state.lu = d.lu; state.luMin = null; renderLineups(); }
-  else if(d.lumin!=null){ state.luMin = +d.lumin; renderLineups(); }
-  else if(d.sc){ state.scMode = d.sc; renderShots(); }
   else if(d.mdl){ state.mdl = d.mdl; renderModels(); }
   else if(d.ts){ const [id,k] = d.ts.split(':'), st = state.sort[id]; if(st.k===k) st.d *= -1; else { st.k = k; st.d = (k==='names'||k==='name'||k==='ab'||k==='num') ? 1 : -1; } hideTip(); RENDER[id](); }
 });
 document.addEventListener('change', e => {
   const s = e.target.closest('[data-sel]'); if(!s) return;
   const k = s.dataset.sel;
-  if(k==='scP'){ state.scP = s.value; renderShots(); }
-  else if(k==='ppPlayer'){ state.ppPlayer = s.value; state.ppGame = null; renderPlayerPerf(); }
+  if(k==='ppPlayer'){ state.ppPlayer = s.value; state.ppGame = null; renderPlayerPerf(); }
   else if(k==='ppGame'){ state.ppGame = s.value; renderPlayerPerf(); }
   else if(/^lp[012]$/.test(k)){ state.lp[+k[2]] = s.value; renderLineupPerf(); }
   else if(k==='lpGame'){ state.lpGame = s.value; renderLineupPerf(); }

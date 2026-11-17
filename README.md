@@ -20,9 +20,6 @@ The current Jazz season, split into dashboards (tabs), under a header with the r
 - **Player Performance:** pick a player and a game (or the whole season) to see a zone shot chart in 11 zones colored by FG%, plus that game's scoring line, shooting splits, and a zone-by-zone breakdown
 - **Lineup Performance:** pick any three Jazz players (and a game, or the whole season) to see every Jazz shot taken while all three were on the floor, in the same 11-zone court, plus points, shooting splits, rebounds/assists/steals/blocks, plus-minus, minutes together, and net rating
 - **Player v. Player:** any two Jazz players, each over the season or a single game: headline lines, a head-to-head bar chart across 12 stats with the leader marked, points by game, shot profile by zone group, and side-by-side zone shot charts
-- **Lineups:** 5-man units and 2-man pairs with a minutes filter, plus an offense-vs-defense scatter
-- **On/Off:** Jazz net rating with each player on the floor minus with him off
-- **Shot Chart:** every Jazz field goal attempt, as hot/cold hexagons against the league's FG% from the same zone, or as makes and misses
 - **Models**, computed in the browser: expected wins (Pythagorean), shot quality vs. shot making, a ridge-regression lineup impact model, and a four-factor regression
 
 Each dashboard has its own link (for example `#players`), so you can share a specific tab.
