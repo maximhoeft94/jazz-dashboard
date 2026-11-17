@@ -84,7 +84,11 @@ section[hidden]{display:none}
 @media (max-width:900px){.sbar{grid-template-columns:110px minmax(0,1fr) 170px;gap:12px}.sbar .sl{font-size:14px}.sbar .sv b{font-size:30px}.sbar .sv small{font-size:13px}}
 @media (max-width:600px){.sbar{grid-template-columns:78px minmax(0,1fr) 92px;gap:8px}.sbar .sv{flex-direction:column;gap:0;align-items:flex-end}.sbar .sl{font-size:12px}.gsh h3{font-size:24px}}
 .pp{display:grid;grid-template-columns:minmax(0,2.1fr) minmax(270px,1fr);gap:0;align-items:stretch;overflow:hidden}
-.ppcourt{padding:16px;border-right:1px solid var(--line);display:flex;align-items:flex-start}
+.ppcourt{padding:16px;border-right:1px solid var(--line);display:flex;align-items:flex-start;justify-content:center}
+#playerPerf .ppcourt{align-items:center}
+.ppcourt svg{width:100%;height:auto;display:block}
+.ppr.zero{color:#a49fb5}
+.ppr.zero b{color:#b7b2c6}
 .ppside{display:flex;flex-direction:column}
 .ppside .ppc{margin:0;border-bottom:1px solid var(--line)}
 .ppside .ppc:last-child{border-bottom:0;flex:1}
@@ -117,10 +121,12 @@ section[hidden]{display:none}
 .ppr b.pts{color:#b4692a}
 .ppmini{display:flex;justify-content:space-between;gap:8px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-top:10px}
 .ppmini b{color:var(--ink);font-size:13px;margin-left:3px}
-#playerPerf .ppc .cap{font-size:15px}
-#playerPerf .ppr{font-size:18px;padding:10px 0}
-#playerPerf .ppr b{font-size:36px;line-height:1.05}
-#playerPerf .ppr b small{font-size:17px}
+#playerPerf .ppside{--pk:1}
+#playerPerf .ppc{padding:calc(16px*var(--pk)) 18px}
+#playerPerf .ppc .cap{font-size:calc(15px*var(--pk));padding-bottom:calc(8px*var(--pk))}
+#playerPerf .ppr{font-size:calc(18px*var(--pk));padding:calc(10px*var(--pk)) 0}
+#playerPerf .ppr b{font-size:calc(36px*var(--pk));line-height:1.05}
+#playerPerf .ppr b small{font-size:calc(17px*var(--pk))}
 #playerPerf .ppmini{font-size:15px;flex-wrap:wrap}
 #playerPerf .ppmini b{font-size:20px;margin-left:4px}
 #playerPerf .pp{grid-template-columns:minmax(0,1.85fr) minmax(330px,1fr)}
@@ -436,6 +442,7 @@ const DASH = [['overview','Team Performance (Overview)'],['playerPerf','Player P
 function renderTabs(){
   $('#tabs').innerHTML = DASH.map(([id,lab]) => '<button class="tab'+(state.dash===id?' on':'')+'" role="tab" aria-selected="'+(state.dash===id)+'" aria-controls="'+id+'" data-dash="'+id+'">'+lab+'</button>').join('');
   DASH.forEach(([id]) => { $('#'+id).hidden = state.dash!==id; });
+  if(typeof fitCourts === 'function') fitCourts();
 }
 const kpi = (l,val,sub,cls) => '<div class="kpi'+(cls?' '+cls:'')+'"><div class="kl">'+l+'</div><div class="kv num">'+val+'</div><div class="ks">'+sub+'</div></div>';
 function renderHero(){
@@ -598,6 +605,30 @@ function statChart(P, played, games, boxes){
   })();
   return '<div class="panel pad gstat"><div class="gsh"><h3>'+(all ? 'Season averages' : 'Game stats')+'</h3></div>' + rows + '</div>';
 }
+const ZLIST = ['paint','mid-range left','mid-range top','mid-range right','left elbow','right elbow','left corner 3','left wing 3','top of key 3','right wing 3','right corner 3'];
+function zoneList(Z){
+  return ZLIST.map(z => { const v = Z[z] || {m:0,a:0};
+    return '<div class="ppr'+(v.a?'':' zero')+'">'+esc(z)+'<b>'+v.m+'/'+v.a+'<small>'+(v.a ? Math.round(100*v.m/v.a)+'%' : '–')+'</small></b></div>'; }).join('');
+}
+/* Player Performance: the court and the stats panel share one height. The panel always lists the same rows;
+   its text scales (down to 60%) until it is no taller than the court can be, then the court is sized to match it. */
+function fitCourts(){
+  const pp = document.querySelector('#playerPerf:not([hidden]) .pp'); if(!pp) return;
+  const court = pp.querySelector('.ppcourt'), side = pp.querySelector('.ppside'), svg = court && court.querySelector('svg');
+  if(!svg) return;
+  pp.style.removeProperty('grid-template-columns'); side.style.removeProperty('--pk');
+  if(matchMedia('(max-width:900px)').matches) return;
+  const vb = svg.viewBox.baseVal, ratio = vb.width / vb.height, pad = 32, total = pp.clientWidth, sideMin = 300;
+  const maxCw = total - sideMin, maxCourtH = (maxCw - pad) / ratio + pad;
+  pp.style.gridTemplateColumns = maxCw+'px minmax(0,1fr)';
+  let k = 1;
+  while(side.offsetHeight > maxCourtH && k > 0.6){ k = Math.round((k - 0.03)*100)/100; side.style.setProperty('--pk', k); }
+  const h = side.offsetHeight, cw = Math.min(maxCw, Math.round((h - pad) * ratio + pad));
+  pp.style.gridTemplateColumns = cw+'px minmax(0,1fr)';
+}
+let fitT = null;
+addEventListener('resize', () => { clearTimeout(fitT); fitT = setTimeout(fitCourts, 120); });
+if(document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitCourts());
 function renderPlayerPerf(){
   const X = S(), raw = X.raw, boxes = raw.boxes || {};
   let h = '<div class="sh"><h2>Player Performance</h2></div>';
@@ -625,7 +656,6 @@ function renderPlayerPerf(){
   h += statChart(P, played, games, boxes);
   const one = state.ppGame!=='ALL' ? games[0] : null;
   const meta = one ? 'UTA '+(one.home?'vs':'@')+' '+esc(one.opp)+'<br>'+esc(new Date(one.d+'T18:00:00Z').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',timeZone:'America/Denver'})) : esc(state.season)+' season<br>'+games.length+' games';
-  const zrows = Object.keys(Z).sort((a,b) => Z[b].a - Z[a].a || Z[b].m - Z[a].m);
   const side = '<div class="ppc"><div class="cap">Field goals</div>'
     + '<div class="ppr">Total pts<b class="pts">'+T.pts+'</b></div>'
     + '<div class="ppr">Total FG<b>'+T.fgm+'/'+T.fga+'<small>'+pct(T.fgm,T.fga)+'</small></b></div>'
@@ -634,9 +664,10 @@ function renderPlayerPerf(){
     + '<div class="ppr">Free throws<b>'+T.ftm+'/'+T.fta+'<small>'+pct(T.ftm,T.fta)+'</small></b></div>'
     + '</div>'
     + '<div class="ppc"><div class="cap">Zone breakdown</div>'
-    + (zrows.length ? zrows.map(z => '<div class="ppr">'+esc(z)+'<b>'+Z[z].m+'/'+Z[z].a+'<small>'+pct(Z[z].m,Z[z].a)+'</small></b></div>').join('') : '<div class="note" style="padding:10px 0">No shots with a recorded location.</div>') + '</div>';
+    + zoneList(Z) + '</div>';
   h += '<div class="panel pp"><div class="ppcourt">'+zoneCourt(Z)+'</div><div class="ppside">'+side+'</div></div>';
   $('#playerPerf').innerHTML = h;
+  fitCourts();
 }
 function renderSchedule(){
   const X = S(), sch = D.schedule || [];
@@ -766,7 +797,6 @@ function renderLineupPerf(){
     + (ok(ortg) && !noData ? '<br>Net rating <span class="'+(ortg-drtg>0?'W':'L')+'">'+sgn(ortg-drtg)+'</span> ('+num(ortg,1)+' off / '+num(drtg,1)+' def)' : '');
   const pct = (m,a) => a ? Math.round(100*m/a)+'%' : '0%';
   const fgm = g('fgm'), fga = g('fga'), m3 = g('fg3m'), a3 = g('fg3a'), ftm = g('ftm'), fta = g('fta'), pm = T.jp - T.op;
-  const zrows = Object.keys(Z).sort((a,b) => Z[b].a - Z[a].a || Z[b].m - Z[a].m);
   const side = '<div class="ppc namecard"><div class="ppname" style="font-size:26px;line-height:1.08">'+names.map(esc).join('<br>')+'</div><div class="ppmeta">'+meta+'</div></div>'
     + '<div class="ppc"><div class="cap">Field goals, all Jazz shots while together</div>'
     + '<div class="ppr">Total pts<b class="pts">'+T.jp+'</b></div>'
@@ -776,10 +806,11 @@ function renderLineupPerf(){
     + '<div class="ppr">Free throws<b>'+ftm+'/'+fta+'<small>'+pct(ftm,fta)+'</small></b></div>'
     + '<div class="ppmini"><span>Reb<b>'+(g('oreb')+g('dreb'))+'</b></span><span>Ast<b>'+g('ast')+'</b></span><span>Stl<b>'+g('stl')+'</b></span><span>Blk<b>'+g('blk')+'</b></span><span>+/-<b class="'+(pm>0?'W':pm<0?'L':'')+'">'+sgn(pm,0)+'</b></span></div></div>'
     + '<div class="ppc"><div class="cap">Zone breakdown</div>'
-    + (zrows.length ? zrows.map(z => '<div class="ppr">'+esc(z)+'<b>'+Z[z].m+'/'+Z[z].a+'<small>'+pct(Z[z].m,Z[z].a)+'</small></b></div>').join('') : '<div class="note" style="padding:10px 0">No shots.</div>') + '</div>';
+    + zoneList(Z) + '</div>';
   h += '<div class="panel pp"><div class="ppcourt">'+zoneCourt(noData ? {} : Z, noData)+'</div><div class="ppside">'+side+'</div></div>';
   $('#lineupPerf').innerHTML = h;
   renderTrioTable();
+  fitCourts();
 }
 
 /* top 3-man lineups table (follows the Game filter; click a row to chart that trio) */
