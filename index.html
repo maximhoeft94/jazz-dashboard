@@ -406,7 +406,10 @@ details.ga>summary:focus-visible{outline:2px solid var(--div);outline-offset:2px
 .ga-box ul{margin:0;padding-left:18px}.ga-box li{margin:5px 0}
 .ga-body h4{font-family:var(--font-d);font-weight:600;font-size:19px;margin:20px 0 8px}
 .ga-body td.wrap,.ga-body th.wrap{white-space:normal;text-align:left}
-.ga-body td{vertical-align:top}.ga-body td.wrap{min-width:220px}
+.ga-body td{vertical-align:top}
+.ga-h3{font-family:var(--font-d);font-weight:700;font-size:24px;margin:24px 0 0}
+.ga-dots{display:flex;flex-wrap:wrap;gap:4px;margin:10px 0 4px}.ga-dots span{width:12px;height:12px;border-radius:50%;background:var(--mid)}.ga-dots .g{background:var(--good)}.ga-dots .b{background:var(--bad)}
+td.ga-up{color:var(--good);font-weight:600}td.ga-dn{color:var(--bad);font-weight:600}.ga-body td.wrap{min-width:220px}
 .ga-wp{width:100%;height:auto;display:block}
 .ga-wp text{font-size:12px;fill:var(--muted);font-family:var(--font-b)}
 @media (max-width:820px){.ga-2{grid-template-columns:1fr}.ga-strip{height:64px}}
@@ -422,11 +425,11 @@ details.ga>summary:focus-visible{outline:2px solid var(--div);outline-offset:2px
   <div id="hero"></div>
   <nav class="tabs" id="tabs" role="tablist" aria-label="Dashboards"></nav>
   <section id="overview"></section>
+  <section id="games"></section>
   <section id="playerPerf"></section>
   <section id="lineupPerf"></section>
   <section id="pvp"></section>
   <section id="models"></section>
-  <section id="games"></section>
   <footer id="foot"></footer>
 </div>
 
@@ -449,7 +452,7 @@ const mean = xs => { xs = xs.filter(ok); return xs.length ? xs.reduce((s,x)=>s+x
 if(!D){ document.body.innerHTML = '<div class="wrap"><div class="empty">No data embedded. Run <code>python fetch_jazz.py</code> to load the seasons.</div></div>'; return; }
 
 /* ---------- state ---------- */
-const DASH_IDS = ['overview','playerPerf','lineupPerf','pvp','models','games'];
+const DASH_IDS = ['overview','games','playerPerf','lineupPerf','pvp','models'];
 const state = {
   season: D.current || D.order[0], dash: (DASH_IDS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview'),
   mdl:'pyth', schedAll:false, pvA:null, pvB:null, pvAg:'ALL', pvBg:'ALL', trAll:false, ppPlayer:null, ppGame:null,
@@ -506,7 +509,7 @@ const rkColor = (r,n) => r==null ? 'var(--muted)' : r <= n/3 ? 'var(--good)' : r
 const rkBadge = (r,n,dir) => r==null ? '' : '<span class="rkb" style="background:'+(dir===0?'var(--muted)':rkColor(r,n))+'">'+ord(r)+'</span>';
 
 /* ---------- tabs + hero ---------- */
-const DASH = [['overview','Team Performance (Overview)'],['playerPerf','Player Performance'],['lineupPerf','Lineup Performance'],['pvp','Player v. Player'],['models','Models'],['games','Game Analysis']];
+const DASH = [['overview','Team Performance (Overview)'],['games','Game Analysis'],['playerPerf','Player Performance'],['lineupPerf','Lineup Performance'],['pvp','Player v. Player'],['models','Models']];
 function renderTabs(){
   $('#tabs').innerHTML = DASH.map(([id,lab]) => '<button class="tab'+(state.dash===id?' on':'')+'" role="tab" aria-selected="'+(state.dash===id)+'" aria-controls="'+id+'" data-dash="'+id+'">'+lab+'</button>').join('');
   DASH.forEach(([id]) => { $('#'+id).hidden = state.dash!==id; });
@@ -1164,11 +1167,13 @@ document.addEventListener('pointerout', e => { const g = e.target.closest && e.t
 addEventListener('scroll', hideTip, {passive:true});
 
 /* ---------- game analysis (hand-written notes; not touched by fetch_jazz.py) ---------- */
+/* Trends: each game tags a trend 'good' or 'bad' in its `tr` field; the cards and dots add up across games. */
 const GA_TRENDS = [
-  {k:'bad', t:'Turnovers against the press', d:"Full-court traps and double teams forced 23 turnovers, mostly when Darryn Peterson, Isaiah Collier or Svi Mykhailiuk brought it up. With Keyonte George handling, the Jazz broke the press cleanly."},
-  {k:'bad', t:'Offensive rebounds allowed', d:"The opponent won the offensive glass 14–7, its steadiest edge all game. Mo Bamba's 15 defensive rebounds kept it from being worse."},
-  {k:'good', t:'Our own pressure works', d:"When the Jazz started trapping in the late 3rd and the 4th, they forced turnovers and won the 4th quarter 31–21, including 13–2 in points off turnovers."},
-  {k:'good', t:"George attacking the other team's star", d:"George went at Luka Dončić on defense and scored 30 with 10 assists. Watch whether he keeps this up against other top guards."}
+  {key:'press', t:'Handling pressure', d:'Breaking full-court traps and double teams without turning it over. Bad when the ballhandler gets trapped into turnovers.'},
+  {key:'glass', t:'Offensive rebounds allowed', d:'Ending defensive possessions with a rebound. Bad when the opponent wins the offensive glass.'},
+  {key:'pressure', t:'Our own defensive pressure', d:'Trapping and pressuring to force turnovers, then scoring off them.'},
+  {key:'george', t:'Keyonte George as the lead scorer', d:'George attacking the other team’s best guard and running the offense.'},
+  {key:'fouls', t:'Early foul trouble', d:'Guards picking up quick fouls and giving away free throws.'}
 ];
 const GA_GAMES = [
   {gid:'401910017', date:'Wed, Nov 18', opp:'Los Angeles Lakers', short:'Lakers', where:'Away', res:'W', us:109, them:97, after:'3–13',
@@ -1185,6 +1190,9 @@ const GA_GAMES = [
    luck:'If both teams had shot about 36% from three, the Lakers would have scored about 9 more points and the Jazz about 2 fewer: about Jazz +1 instead of +12.',
    players:[['Keyonte George','30','9-17','5-10','10 ast, 4 TO','+16'],['Svi Mykhailiuk','15','4-10','4-10','5 ast, 4 TO','+16'],['Josh Green','11','4-4','2-2','2 stl, 1 blk','+9'],['Darryn Peterson','11','3-5','1-3','4 PF, 2 TO','+3'],['Mo Bamba','6','3-5','0-1','16 reb, 2 blk','+17'],['Jaxson Hayes','6','2-7','0-0','7 reb, 2 blk','−5']],
    oppPlayers:[['Luka Dončić','29','10-28','2-12','9 TO, 1 tech','−18'],['Collin Sexton','12','4-8','1-2','3 TO','−9'],['Walker Kessler','10','3-7','0-0','11 reb, 4/10 FT','−7'],['Sandro Mamukelashvili','6','1-10','0-4','—','−4']],
+   m:{to:23,oto:18,oreb:7,ooreb:14,potf:26,opotf:29,fga:77,ofga:89,p3:[14,37],op3:[9,33]},
+   tr:{press:'bad',glass:'bad',pressure:'good',george:'good',fouls:'bad'},
+   src:'Sources: live box score during the game plus courtside notes. The box score feed left out some players (Ace Bailey, Brice Sensabaugh, Quentin Grimes). The 36% \u201cnormal\u201d three-point rate is an approximation.',
    peterson:'Rough start: 3 fouls and 2 turnovers in the 1st quarter, trapped repeatedly by the press. Recovered in the 2nd half to finish with 11 points on 3/5 shooting, splitting doubles and drawing fouls, and never picked up a 5th foul.'}
 ];
 function gaWP(pts){
@@ -1205,15 +1213,40 @@ function renderGames(){
   const an = Object.fromEntries(GA_GAMES.map(g=>[g.gid,1]));
   const md = d => new Date(d).toLocaleDateString('en-US',{month:'numeric',day:'numeric',timeZone:'America/Denver'});
   const tagC = {ok:'ga-good',miss:'ga-bad',flip:'ga-dice'}, tagL = {ok:'Held',miss:"Didn’t",flip:'Flipped'};
+  const old = GA_GAMES.slice().reverse(); /* oldest first, for anything drawn over time */
+  const N = GA_GAMES.length, pl = n => n+' game'+(n===1?'':'s');
   const rv = a => a.map(r=>'<tr><td class="l">'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td class="wrap"><span class="ga-tag '+tagC[r[4]]+'">'+tagL[r[4]]+'</span>'+r[3]+'</td></tr>').join('');
   const pt = a => '<div class="panel scroll"><table><thead><tr><th class="l">Player</th><th>Pts</th><th>FG</th><th>3P</th><th class="l">Notes</th><th>+/−</th></tr></thead><tbody>'+a.map(p=>'<tr><td class="l">'+p[0]+'</td><td>'+p[1]+'</td><td>'+p[2]+'</td><td>'+p[3]+'</td><td class="l">'+p[4]+'</td><td>'+p[5]+'</td></tr>').join('')+'</tbody></table></div>';
-  let h = '<div class="sh"><h2>Game analysis</h2><span class="note">What went well, what hurt, and the adjustments that changed each game. '+GA_GAMES.length+' game'+(GA_GAMES.length===1?'':'s')+' analyzed.</span></div>';
+  const sg = v => (v>0?'+':v<0?'−':'')+Math.abs(v);
+  let h = '<div class="sh"><h2>Game analysis</h2><span class="note">What went well, what hurt, and the adjustments that changed each game. '+pl(N)+' analyzed.</span></div>';
   h += '<div class="panel"><div class="ga-strip" style="--n:'+sch.length+'" role="img" aria-label="Season results; bar height is the margin">'
     + sch.map(g=>{ const m=g.pts-g.opts, a=an[g.id]; return '<div class="ga-g'+(m>0?' w':'')+(a?' a':'')+'" title="'+md(g.date)+' '+(g.home?'vs ':'@ ')+g.opp+' '+(m>0?'W':'L')+' '+g.pts+'–'+g.opts+'"><i style="height:'+Math.max(8,Math.abs(m)/mx*100)+'%"></i>'+(a?'<button data-ga="'+g.id+'" aria-label="Open the '+md(g.date)+' analysis"></button>':'')+'</div>'; }).join('')
     + '</div><div class="ga-key"><span><s style="background:var(--jazz)"></s>Win</span><span><s style="background:var(--mid)"></s>Loss</span><span><s style="background:var(--gold)"></s>Analyzed (click to open)</span><span>Bar height = margin · '+W+'–'+L+'</span></div></div>';
-  h += '<h3 style="font-family:var(--font-d);font-weight:700;font-size:24px;margin:22px 0 0">Trends to watch</h3><div class="note">Each trend is based on '+GA_GAMES.length+' analyzed game'+(GA_GAMES.length===1?'':'s')+' so far, so treat them as ideas to test.</div>';
-  h += '<div class="ga-trends">'+GA_TRENDS.map(t=>'<div class="panel pad"><span class="ga-tag '+(t.k==='good'?'ga-good':'ga-bad')+'">'+(t.k==='good'?'Strength':'Problem')+'</span><b>'+t.t+'</b><div>'+t.d+'</div></div>').join('')+'</div>';
-  h += GA_GAMES.map((g,i)=>'<details class="ga panel" id="ga-'+g.gid+'"'+(i===0?' open':'')+'><summary><div class="ga-res'+(g.res==='L'?' l':'')+'">'+g.res+'</div><div><div class="ga-tt">'+(g.res==='W'?'Beat':'Lost to')+' the '+g.opp+', '+g.us+'–'+g.them+'</div><div class="note">'+g.date+' · '+g.where+' · Record '+g.after+'</div></div><div class="ga-chev" aria-hidden="true">›</div></summary><div class="ga-body">'
+
+  /* trends: tally good/bad tags across games */
+  h += '<h3 class="ga-h3">Trends to watch</h3><div class="note">Each card adds up every analyzed game that showed the trend. One dot per game, oldest to newest. '+(N<5?'With '+pl(N)+' so far, treat these as ideas to test.':'')+'</div>';
+  h += '<div class="ga-trends">'+GA_TRENDS.map(t=>{
+      const seen = old.filter(g=>g.tr&&g.tr[t.key]), good = seen.filter(g=>g.tr[t.key]==='good').length, bad = seen.length-good;
+      const k = !seen.length ? 'none' : good>bad ? 'good' : bad>good ? 'bad' : 'mix';
+      const lab = {good:'Working',bad:'Not working',mix:'Mixed',none:'Not seen yet'}[k], cls = {good:'ga-good',bad:'ga-bad',mix:'ga-dice',none:''}[k];
+      const wl = seen.length ? (' · Jazz went '+seen.filter(g=>g.res==='W').length+'–'+seen.filter(g=>g.res==='L').length+' in those games') : '';
+      return '<div class="panel pad"><span class="ga-tag '+cls+'">'+lab+'</span><b>'+t.t+'</b><div>'+t.d+'</div>'
+        + '<div class="ga-dots">'+old.map(g=>{ const v=g.tr&&g.tr[t.key]; return '<span class="'+(v==='good'?'g':v==='bad'?'b':'n')+'" title="'+g.date+' vs '+g.short+': '+(v||'not a factor')+'"></span>'; }).join('')+'</div>'
+        + '<div class="note">Good in '+good+', bad in '+bad+' of '+pl(N)+wl+'</div></div>'; }).join('')+'</div>';
+
+  /* over time: the counter for every analyzed game, plus records when the Jazz win each battle */
+  const BAT = [['Turnovers', g=>g.m.oto-g.m.to, 'fewer turnovers'],['Offensive rebounds', g=>g.m.oreb-g.m.ooreb, 'more offensive rebounds'],['Points off turnovers', g=>g.m.potf-g.m.opotf, 'more points off turnovers'],['Shot attempts', g=>g.m.fga-g.m.ofga, 'more shot attempts'],['3-point %', g=>g.m.p3[0]/g.m.p3[1]-g.m.op3[0]/g.m.op3[1], 'a better 3-point %']];
+  h += '<h3 class="ga-h3">Over time</h3><div class="note">Positive numbers mean the Jazz won that battle. "Record" shows how the Jazz did in games where they won or lost each battle.</div>';
+  h += '<div class="ga-2" style="margin-top:10px"><div class="panel scroll"><table><thead><tr><th class="l">Game</th><th>Result</th><th data-d="Opponent turnovers minus Jazz turnovers">TO</th><th data-d="Jazz offensive rebounds minus opponent’s">OREB</th><th data-d="Jazz points off turnovers minus opponent’s">Pts off TO</th><th data-d="Jazz shot attempts minus opponent’s">Shots</th><th>3P% (UTA–OPP)</th></tr></thead><tbody>'
+    + GA_GAMES.map(g=>'<tr><td class="l">'+g.date.replace(/^\w+, /,'')+' '+(g.where==='Away'?'@ ':'vs ')+g.short+'</td><td>'+g.res+' '+g.us+'–'+g.them+'</td>'+BAT.slice(0,4).map(b=>{const v=b[1](g);return '<td class="'+(v>0?'ga-up':v<0?'ga-dn':'')+'">'+sg(v)+'</td>';}).join('')+'<td>'+Math.round(g.m.p3[0]/g.m.p3[1]*100)+'–'+Math.round(g.m.op3[0]/g.m.op3[1]*100)+'</td></tr>').join('')
+    + (N>1?'<tr><td class="l"><b>Average</b></td><td></td>'+BAT.slice(0,4).map(b=>{const v=Math.round(GA_GAMES.reduce((s,g)=>s+b[1](g),0)/N*10)/10;return '<td><b>'+sg(v)+'</b></td>';}).join('')+'<td></td></tr>':'')
+    + '</tbody></table></div>';
+  h += '<div class="panel scroll"><table><thead><tr><th class="l">When the Jazz had…</th><th>Record</th><th>Games won the battle</th></tr></thead><tbody>'
+    + BAT.map(b=>{ const won=GA_GAMES.filter(g=>b[1](g)>0); return '<tr><td class="l">'+b[2]+'</td><td>'+won.filter(g=>g.res==='W').length+'–'+won.filter(g=>g.res==='L').length+'</td><td>'+won.length+' of '+N+'</td></tr>'; }).join('')
+    + '</tbody></table></div></div>';
+
+  h += '<h3 class="ga-h3">Games <span class="note">newest first · click to open</span></h3>';
+  h += GA_GAMES.map(g=>'<details class="ga panel" id="ga-'+g.gid+'"><summary><div class="ga-res'+(g.res==='L'?' l':'')+'">'+g.res+'</div><div><div class="ga-tt">'+(g.res==='W'?'Beat':'Lost to')+' the '+g.opp+', '+g.us+'–'+g.them+'</div><div class="note">'+g.date+' · '+g.where+' · Record '+g.after+'</div></div><div class="ga-chev" aria-hidden="true">›</div></summary><div class="ga-body">'
     + '<div class="ga-verdict">'+g.verdict+'<div class="note" style="margin-top:6px">'+g.ctx+'</div></div>'
     + '<div class="ga-2"><div class="ga-box"><h3>What went well</h3><ul>'+g.well.map(x=>'<li>'+x+'</li>').join('')+'</ul></div><div class="ga-box"><h3>What hurt</h3><ul>'+g.hurt.map(x=>'<li>'+x+'</li>').join('')+'</ul></div></div>'
     + '<h4>Adjustments during the game</h4><div class="panel scroll"><table><thead><tr><th class="l">When</th><th class="l">Change</th><th class="l wrap">Effect</th></tr></thead><tbody>'+g.changes.map(c=>'<tr><td class="l">'+c[0]+'</td><td class="l"><b>'+c[1]+'</b></td><td class="wrap">'+c[2]+'</td></tr>').join('')+'</tbody></table></div>'
@@ -1224,11 +1257,10 @@ function renderGames(){
     + '<div class="ga-box"><h3><span class="ga-tag ga-ht">Height</span>Repeatable stats</h3><div class="scroll"><table><thead><tr><th class="l">Stat</th><th>Half</th><th>Final</th><th class="l">Result</th></tr></thead><tbody>'+rv(g.height)+'</tbody></table></div></div></div>'
     + '<h4>Jazz players</h4>'+pt(g.players)+'<h4>'+g.short+' players</h4>'+pt(g.oppPlayers)
     + '<h4>Darryn Peterson watch</h4><p style="margin:0">'+g.peterson+'</p>'
-    + '<div class="note" style="margin-top:14px">Sources: live box score during the game plus courtside notes. The box score feed left out some players (Ace Bailey, Brice Sensabaugh, Quentin Grimes). The 36% “normal” three-point rate is an approximation.</div>'
+    + '<div class="note" style="margin-top:14px">'+(g.src||'')+'</div>'
     + '</div></details>').join('');
   $('#games').innerHTML = h;
 }
-
 /* ---------- wiring ---------- */
 function renderAll(){ renderTabs(); renderHero(); renderOverview(); renderPlayerPerf(); renderLineupPerf(); renderPvp(); renderModels(); renderGames(); }
 const RENDER = {ro:renderRoster, tr:renderTrioTable};
