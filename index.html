@@ -317,13 +317,6 @@ table.vs td.st{width:42%;min-width:220px}
 .sc .rpt .dotp{stroke:var(--panel);stroke-width:1.5;transition:stroke-width .1s}
 .sc .rpt:hover .dotp{stroke:var(--ink);stroke-width:2.5}
 
-@media (max-width:900px){.mini{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:12px}
-.mini div{padding:8px 10px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
-.mini div:nth-child(3n){border-right:0}
-.mini div:nth-last-child(-n+3){border-bottom:0}
-.mini b{display:block;font-family:var(--font-d);font-size:24px;line-height:1.1}
-.mini span{font-size:12px;color:var(--muted)}
-
 /* selects */
 .sel{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
 select{font:inherit;font-size:14px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 8px;max-width:100%;min-width:0;flex:1 1 180px}
@@ -373,7 +366,6 @@ footer{margin-top:40px;font-size:13px;color:var(--muted);border-top:3px solid va
   .cr{grid-template-columns:110px minmax(0,1fr) 56px}
 }
 @media (prefers-reduced-motion:no-preference){ .trk i{transition:width .35s ease} }
-} /* closes the @media (max-width:900px){.mini...} block above, which was left open */
 /* game analysis */
 .ga-strip{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:3px;align-items:end;height:84px;padding:12px 16px 0}
 .ga-g{display:flex;flex-direction:column;justify-content:flex-end;height:100%;position:relative}
