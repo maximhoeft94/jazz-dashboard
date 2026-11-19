@@ -21,6 +21,7 @@ The current Jazz season, split into dashboards (tabs), under a header with the r
 - **Lineup Performance:** pick any three Jazz players (and a game, or the whole season) to see every Jazz shot taken while all three were on the floor, in the same 11-zone court, plus points, shooting splits, rebounds/assists/steals/blocks, plus-minus, minutes together, and net rating
 - **Player v. Player:** any two Jazz players, each over the season or a single game: headline lines, a head-to-head bar chart across 12 stats with the leader marked, points by game, shot profile by zone group, and side-by-side zone shot charts
 - **Models**, computed in the browser: expected wins (Pythagorean), shot quality vs. shot making, a ridge-regression lineup impact model, and a four-factor regression
+- **Game Analysis:** hand-written breakdowns of individual games, one collapsible entry per game: what went well, what hurt, in-game adjustments, a win-probability trace, the rebound and turnover counter, and a "dice vs. height" review of luck vs. repeatable stats. Entries live in the `GA_GAMES` array in `index.html`, which `fetch_jazz.py` doesn't touch
 
 Each dashboard has its own link (for example `#players`), so you can share a specific tab.
 
