@@ -16,7 +16,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#f3e9da; --panel:#ffffff; --ink:#15112a; --muted:#625c78; --line:#dcd9e8; --soft:#f6f5fb;
+  --bg:#efe9f8; --panel:#ffffff; --ink:#15112a; --muted:#625c78; --line:#dcd9e8; --soft:#f6f5fb;
   --jazz:#4b2a85; --gold:#e9a825; --good:#0b8a4f; --bad:#c8202f;
   --div:#4b2a85; --a:#4b2a85; --b:#e8590c;
   --hot:#d1495b; --cold:#3b6fb6; --mid:#e6e4ee;
@@ -27,7 +27,7 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0}
-body{background:var(--bg);color:var(--ink);font-family:var(--font-b);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+body{background:linear-gradient(to bottom, transparent 0, transparent 300px, var(--bg) 360px), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 360' preserveAspectRatio='none'%3E %3Cpath fill='%23ddd2ef' d='M0 210 L90 150 L170 185 L260 95 L340 150 L420 120 L520 40 L610 130 L690 100 L790 160 L880 70 L960 125 L1050 90 L1150 150 L1240 60 L1330 120 L1420 95 L1510 140 L1600 110 V360 H0Z'/%3E %3Cpath fill='%23d2c4ea' d='M0 250 L110 190 L200 230 L300 160 L380 205 L470 175 L560 225 L650 150 L740 210 L840 170 L930 230 L1020 165 L1120 215 L1210 180 L1310 235 L1400 175 L1500 220 L1600 190 V360 H0Z'/%3E %3Cpath fill='%23e6def3' d='M0 300 L120 255 L230 290 L340 245 L450 285 L560 250 L680 295 L790 260 L900 300 L1010 262 L1130 298 L1240 265 L1350 300 L1460 270 L1600 295 V360 H0Z'/%3E %3C/svg%3E") top center / 100% 360px no-repeat, var(--bg);color:var(--ink);font-family:var(--font-b);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
 .wrap{max-width:1180px;margin:0 auto;padding:20px 16px 56px}
 button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible,select:focus-visible{outline:2px solid var(--div);outline-offset:2px}
